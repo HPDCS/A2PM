@@ -14,6 +14,7 @@
 #include "thread.h"
 #include "timer.h"
 
+#define PATH "/home/luca/Scrivania/controllers_list.txt"
 
 #define LEADER_SLEEP 1
 #define LEADER_SUSPECT_THRESHOLD 10
@@ -43,9 +44,12 @@ static void do_agreement_reduction(void) {
 	int leader = -1;
 	int id = 0;
 
+/*printf("LEADER: last_proposal: %d\n", last_proposal);
+printf("LEADER: controllers: %d\n", controllers);*/
+
 	if(last_proposal < controllers && timer_value_seconds(leader_propose_timer) <= LEADER_PROPOSE_THRESHOLD)
 		return;
-
+//printf("LEADER: ho superato l'if\n");
 	for(i = 0; i < last_proposal; i++) {
 		if(leader_proposals[i] > id) {
 			id = leader_proposals[i];
@@ -87,6 +91,36 @@ static void do_leader_election(void) {
 
 	/* Walk through linked list, maintaining head pointer so we
 	can free list later */
+	
+
+/***************/
+/*	
+	char host[NI_MAXHOST];
+	
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+	   family = ifa->ifa_addr->sa_family;
+
+	   printf("%s  address family: %d%s\n",
+			   ifa->ifa_name, family,
+			   (family == AF_PACKET) ? " (AF_PACKET)" :
+			   (family == AF_INET) ?   " (AF_INET)" :
+			   (family == AF_INET6) ?  " (AF_INET6)" : "");
+
+	   if (family == AF_INET || family == AF_INET6) {
+		   s = getnameinfo(ifa->ifa_addr,
+				   (family == AF_INET) ? sizeof(struct sockaddr_in) :
+										 sizeof(struct sockaddr_in6),
+				   host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+		   if (s != 0) {
+			   printf("getnameinfo() failed: %s\n", gai_strerror(s));
+			   exit(EXIT_FAILURE);
+		   }
+		   printf("\taddress: <%s>\n", host);
+	   }
+   }
+*/
+/*********************/
+	
 
 	for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++) {
 		if (ifa->ifa_addr == NULL)
@@ -94,16 +128,17 @@ static void do_leader_election(void) {
 
 		family = ifa->ifa_addr->sa_family;
 
-		if (family == AF_INET) {
-
+		if (family == AF_INET && !strcmp(ifa->ifa_name,"eth0")) {
 			my_int_ip = (long)(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr.s_addr);
+			printf("MY_INT_IP: %ld\n", my_int_ip);
+			printf("Proposed ip_address: %s on net interface %s\n", inet_ntoa(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr), ifa->ifa_name);
 			broadcast(LEADER_PROPOSE, &my_int_ip, sizeof(my_int_ip));
 			goto ip_found;
 
 		}
-
-		fprintf(stderr, "Error: unable to get my own IP. I'm not participating in the leader election!\n"); 
 	}
+	
+	fprintf(stderr, "Error: unable to get my own IP. I'm not participating in the leader election!\n");
 
     ip_found:
 
@@ -171,6 +206,8 @@ bool send_to_leader(void *payload, size_t size) {
 
 int initialize_leader(char *controllers_path) {
 
+	printf("Initializing leader election...\n");
+
 	// Count controllers
 	FILE *f;
         char line[128];
@@ -183,7 +220,7 @@ int initialize_leader(char *controllers_path) {
         }
 
         while (fgets(line, 128, f) != NULL) {
-		controllers++;
+			controllers++;
         }
 
 	
@@ -192,5 +229,6 @@ int initialize_leader(char *controllers_path) {
 	register_callback(LEADER_HEARTBEAT, leader_heartbeat);
 	register_callback(LEADER_PROPOSE, leader_propose);
 	create_thread(leader_loop, NULL);
+	
+	printf("Leader election UP!\n");
 }
-

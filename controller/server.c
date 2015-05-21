@@ -14,6 +14,9 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 
+#include "broadcast.h"
+
+
 #define COMMUNICATION_TIMEOUT   60
 #define NUMBER_GROUPS           3       // one group for each type of service
 #define NUMBER_VMs              5       // number of possible VMs initially for each group
@@ -22,7 +25,8 @@
 #define TTC_THRESHOLD           300     // threshold to rejuvenate the VM (in sec)
 
 #define MTTF_SLEEP				10		// avg rej rate period
-
+#define PATH 					"/home/luca/Scrivania/controllers_list.txt"
+#define GLOBAL_CONTROLLER_PORT	4567
 
 int ml_model;                           // used machine-learning model
 struct timeval communication_timeout;
@@ -442,6 +446,39 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr){
 		return (int)-1;
 	}
 }
+/*
+void start_server_dgram(int * sockfd){
+	int sock;
+	struct sockaddr_in temp;
+	
+	if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+		perror("start_server_dgram - socket");
+		exit(1);
+	}
+	
+	temp.sin_family = AF_INET;
+	temp.sin_addr.s_addr = htonl(INADDR_ANY);
+	temp.sin_port = htons((int)GLOBAL_CONTROLLER_PORT);
+	
+	if(bind(sock,(struct sockaddr *) &temp, sizeof(temp)) <0){
+		perror("start_server_dgram - bind");
+		exit(1);
+	}*/
+	/*
+	char buffer[4096];
+	struct sockaddr_in client;
+	unsigned int addr_len;
+	addr_len = sizeof(struct sockaddr_in);
+	int numbytes;
+	while(1){
+		printf("Waiting for datas...\n");
+		if((numbytes = recvfrom(sock,buffer,4096,0,(struct sockaddr *)&client,&addr_len)) < 0){
+			perror("recvfrom");
+		}
+		printf("Ho ricevuto: %s\n", buffer);
+		sleep(1);
+	}*/
+//}
 
 /*
  * This function opens the VMCI server for connections;
@@ -483,6 +520,9 @@ int main(int argc,char ** argv){
     int port;				//port number for CN
     int port_balancer;		//port number for LB
     int index;
+    
+    //int sock_dgram;
+    
     pthread_attr_t pthread_custom_attr;
     pthread_t tid;
     
@@ -517,6 +557,12 @@ int main(int argc,char ** argv){
     start_server(&sockfd,port);
     //Open the connection with the load_balancer
     start_server(&sockfd_balancer,port_balancer);
+    
+    //start_server_dgram(&sock_dgram);
+    
+    //Init of broadcast and leader primitives
+    initialize_broadcast(PATH);
+    initialize_leader(PATH);
     
     //Start dedicated thread to communicate with LB
     //It must block until the system is not ready

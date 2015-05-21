@@ -13,16 +13,21 @@ char *proto;
   struct servent *serv;
   char *errpos;
 
+char service_name[128];
+sprintf(service_name,"%d",(int)service);
+
   /* First try to read it from /etc/services */
-  serv = getservbyname(service, proto);
+  serv = getservbyname(service_name, proto);
+
   if (serv != NULL)
     port = serv->s_port;
   else { /* Not in services, maybe a number? */
-    lport = strtol(service, &errpos, 0);
+    lport = strtol(service_name, &errpos, 0);
     //errpos points to the first next character (es: "100 ciao", it points to " ciao")
     //errpos[0] must be equal to zero to have a correct lport value
     if ( (errpos[0] != 0) || (lport < 1) || (lport > 65535) )
       return -1; /* Invalid port address */
+      
     port = htons(lport);
   }
   return port;
@@ -191,7 +196,7 @@ char *netaddress;
 
   printf("Connecting to %s on port %d...\n",inet_ntoa(*addr),htons(port));
 
-  if (type == SOCK_STREAM) {
+  //if (type == SOCK_STREAM) {
     connected = connect(sock, (struct sockaddr *) &address, 
       sizeof(address));
     if (connected < 0) {
@@ -199,12 +204,12 @@ char *netaddress;
       return -1;
     }
     return sock;
-  }
+  //}
   /* Otherwise, must be for udp, so bind to address. */
-  if (bind(sock, (struct sockaddr *) &address, sizeof(address)) < 0) {
+  /*if (bind(sock, (struct sockaddr *) &address, sizeof(address)) < 0) {
     perror("bind");
     return -1;
-  }
+  }*/
   return sock;
 }
 

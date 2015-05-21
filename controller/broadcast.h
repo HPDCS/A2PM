@@ -5,7 +5,8 @@
 
 #define MAX_CONTROLLERS 32
 #define MAX_CALLBACKS 	1024
-#define MAX_MESSAGE 	1024*1024
+//#define MAX_MESSAGE 	1024*1024
+#define MAX_MESSAGE		1024
 #define SIZE_PAYLOAD	1024
 
 typedef struct _msg {
