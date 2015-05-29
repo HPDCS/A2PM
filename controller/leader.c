@@ -14,8 +14,6 @@
 #include "thread.h"
 #include "timer.h"
 
-#define PATH "/home/luca/Scrivania/controllers_list.txt"
-
 #define LEADER_SLEEP 1
 #define LEADER_SUSPECT_THRESHOLD 10
 #define LEADER_PROPOSE_THRESHOLD 10

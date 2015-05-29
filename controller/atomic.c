@@ -1,5 +1,31 @@
-// Do not compile anything here if we're not on an x86 machine!
-
+/**
+*			Copyright (C) 2008-2015 HPDCS Group
+*			http://www.dis.uniroma1.it/~hpdcs
+*
+*
+* This file has been developed by the High Performance and Dependable
+* Computing Systems Group.
+* It has been released to the public under the GPL license v2.
+* Removing this copyright notice is an infringement of current international
+* laws.
+*
+* This is free software; you can redistribute it and/or modify it under the
+* terms of the GNU General Public License as published by the Free Software
+* Foundation; either version 3 of the License, or (at your option) any later
+* version.
+*
+* This is distributed in the hope that it will be useful, but WITHOUT ANY
+* WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+* A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License along with
+* this code; if not, write to the Free Software Foundation, Inc.,
+* 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*
+* @file atomic.c
+* @brief Primitives to access x86-specific atomic assembly primitives
+* @author Alessandro Pellegrini
+*/
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>

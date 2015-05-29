@@ -25,7 +25,6 @@
 #define TTC_THRESHOLD           300     // threshold to rejuvenate the VM (in sec)
 
 #define MTTF_SLEEP				10		// avg rej rate period
-#define PATH 					"/home/luca/Scrivania/controllers_list.txt"
 #define GLOBAL_CONTROLLER_PORT	4567
 
 int ml_model;                           // used machine-learning model

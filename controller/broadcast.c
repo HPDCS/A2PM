@@ -27,6 +27,7 @@ __thread fd_set socks;
 //__thread fd_set write_socks;
 __thread int highsock;
 
+// Make a socket non-blocking
 void setnonblocking(int sock) {
 	int opts;
 
@@ -60,6 +61,9 @@ void build_select_list(){
 	if(sock_dgram > highsock) highsock = sock_dgram;
 }
 
+
+// This function implements the actual transfer of messages to all controllers which
+// were registered at startup.
 static void do_bcast(void) {
 	
 	printf("I'm inside do_bcast!\n");
@@ -140,6 +144,10 @@ static void do_bcast(void) {
 	}*/
 }
 
+
+// This is the entry point of the demultiplexer of callback functions
+// registered to manage messages which are received from controllers as
+// broadcast functions.
 static void call_function(int sock, msg_struct msg){
 	
 	printf("I'm inside call function\n");
@@ -148,14 +156,17 @@ static void call_function(int sock, msg_struct msg){
 	for(index = 0; index < MAX_CALLBACKS; index++){
 		if(msg.type == 0) continue;
 		if(msg.type == callbacks[index].type){
-			printf("Sono nell'if del call_funcion\n");
-			printf("Il valore e': %s\n", (char *) callbacks[index].callback);
+			printf("in if of call_funcion\n");
+			printf("Value is: %s\n", (char *) callbacks[index].callback);
 			callbacks[index].callback(sock,&msg.payload,msg.size);
 			return;
 		}
 	}
 }
 
+
+// This is the main thread which manages the reception of information
+// from remote broadcasts
 static void *broadcast_loop(void *args) {
 	(void)args;
 
@@ -168,7 +179,7 @@ static void *broadcast_loop(void *args) {
 	
 	bool my_new_bcast_message;
 	
-	// Come forwarder. In più uno switch case sul tipo di messaggio ricevuto
+	// as the forwarder's code. We switch on message type
 	while(1){
 		
 		build_select_list();
@@ -234,8 +245,6 @@ static void *broadcast_loop(void *args) {
 		}
 		
 	}
-	// Quando mi sveglio dal timeout di select, controllo se new_bcast_message == true, in quel caso mando a tutti il messaggio
-	// chiamando do_bcast();
 }
 
 void start_server_dgram(int * sockfd){
