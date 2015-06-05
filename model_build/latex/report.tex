@@ -1,0 +1,223 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{fullpage}
+
+
+\title{Training Results}
+\author{Machine Learning Framework}
+ 
+\begin{document}
+\maketitle
+
+\section{System Parameters}
+
+The trend of System Parameters as captured by the data collection is here reported:
+
+\begin{center}
+\includegraphics[width=0.8\textwidth]{../gnuplot/parameters/all.png}
+\end{center}
+
+
+\section{Parameters Selected by Lasso}
+
+This Section shows the number of parameters selected by Lasso regularization.
+Additionally, tables present the specific weights assigned by the regularization process.
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+$\lambda$ & \# Parameters \\
+\midrule
+\input{num_parameters.gen.tex}
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{center}
+\includegraphics[width=0.9\textwidth]{../gnuplot/lasso/SelectedParameters.png}
+\end{center}
+
+
+\input{parameters.gen.tex}
+
+
+
+\section{Maximum Absolute Prediction Error}
+
+Represents the highest error (worst case) encountered during the prediction. It is expressed in seconds.
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Algorithm} & \textbf{Error (seconds)} \\
+\midrule
+\input{mape.gen.tex}
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+
+
+
+
+\section{Relative Absolute Prediction Error}
+
+The relative absolute $E_i$ error is relative to a simple predictor, which is just the average of the actual values. In this case the error is just the total absolute error instead of the total squared error. Thus, the relative absolute error takes the total absolute error and normalizes it by dividing by the total absolute error of the simple predictor.
+
+\begin{equation}
+E_i = \frac{\sum_{j=1}^n | P_j - T_j | }{\sum_{j=1}^n | T_j - \bar{T} | }
+\end{equation}
+
+Where $P_j$ is the value predicted for sample $j$ (out of $n$ samples), $T_j$ is the target (i.e., ground truth) value for sample $j$, and:
+
+\begin{equation}
+\bar{T} =  \frac{1}{n} \sum_{j=1}^n T_j
+\end{equation}
+
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Algorithm} & \textbf{Error (percentage)} \\
+\midrule
+\input{rape.gen.tex}
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+
+\section{Mean Absolute Error}
+
+The Mean Absolute Error is the average of the differences between predicted and real remaining time to failure. Specifically, it is calculated as:
+
+\begin{equation}
+\frac{1}{n} \sum_{j=1}^n |P_j - T_j|
+\end{equation}
+
+In the following table values are given in seconds
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Algorithm} & \textbf{Error (seconds)} \\
+\midrule
+\input{mae.gen.tex}
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+
+\section{Soft-Mean Absolute Error}
+
+The Soft-Mean Absolute Error is calculated as the Mean Absolute Error except that when the value $|P_j-T_j |$ is below a given threshold it is assumed to be equal to 0.
+
+\subsection{Tolerance Threshold: 10\%}
+
+In this case, if $|P_j-T_j |<0.1 T_j$ then $|P_j-T_j |$ is assumed to be equal 0. In the following table, values are given in seconds.
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Algorithm} & \textbf{Error (seconds)} \\
+\midrule
+\input{smae.gen.tex}
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+
+\subsection{Tolerance Threshold: 5 minutes (300 seconds)}
+
+In this case, if  $|P_j-T_j |<300$ then $|P_j-T_j |$ is assumed to be equal 0. In the following table, values are given in seconds.
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Algorithm} & \textbf{Error (seconds)} \\
+\midrule
+\input{smae_abs.gen.tex}
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+
+\section{Training Time for ML models with WEKA}
+
+The Training Time represents the time taken to instantiate a prediction model from the input dataset. It is expressed in seconds.
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Algorithm} & \textbf{Training Time (seconds)} \\
+\midrule
+\input{gen_time.gen.tex}
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+
+\section{Validation Time of ML models with WEKA }
+
+The Validation Time represents the time needed to validate the accuracy of a model. It is expressed in seconds.
+
+\begin{center}
+\begin{tabular}{cc}
+\toprule
+\textbf{Algorithm} & \textbf{Training Time (seconds)} \\
+\midrule
+\input{val_time.gen.tex}
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+
+\section{Fitted Models}
+
+In this Section we report fitted models for the various machine learning algorithm used
+by the Framework.
+
+Note that the set of parameters used for training is different: Lasso uses only a subset
+of parameters, namely the ones associated with non-zero weights in the $\beta$
+vector. On the other hand, the other algorithms rely on the whole set of input parameters.
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-1.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-10.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-100.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-1000.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-10000.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-100000.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-1000000.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-10000000.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-100000000.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/lasso/lasso-lambda-1000000000.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/linear/linear.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/m5p/m5p.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/reptree/reptree.png}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/svm/svm.jpg}
+
+\includegraphics[width=0.8\textwidth]{../gnuplot/svm2/svm2.jpg}
+
+
+\end{document}
