@@ -40,20 +40,20 @@ static int last_proposal;
 static void do_agreement_reduction(void) {
 	int i;
 	int leader = -1;
-	int id = 0;
-
-/*printf("LEADER: last_proposal: %d\n", last_proposal);
-printf("LEADER: controllers: %d\n", controllers);*/
-
+	long id = 0;
+	
+	// Controls that all the controllers have proposed and that propose period is expired
 	if(last_proposal < controllers && timer_value_seconds(leader_propose_timer) <= LEADER_PROPOSE_THRESHOLD)
 		return;
-//printf("LEADER: ho superato l'if\n");
+	
+	// for all the proposal, searches for the greatest one
 	for(i = 0; i < last_proposal; i++) {
 		if(leader_proposals[i] > id) {
-			id = leader_proposals[i];
+			id = leader_proposals[i]; 
 			leader = leader_proposals_sockets[i];
 		}
 	}
+	// here 
 
 	if(leader == -1) {
 		fprintf(stderr, "%s:%d: Error in leader election\n", __FILE__, __LINE__);
@@ -128,9 +128,10 @@ static void do_leader_election(void) {
 
 		if (family == AF_INET && !strcmp(ifa->ifa_name,"eth0")) {
 			my_int_ip = (long)(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr.s_addr);
-			printf("MY_INT_IP: %ld\n", my_int_ip);
-			printf("Proposed ip_address: %s on net interface %s\n", inet_ntoa(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr), ifa->ifa_name);
-			broadcast(LEADER_PROPOSE, &my_int_ip, sizeof(my_int_ip));
+			printf("LEADER - Proposed ip_address: %s on net interface %s\n", inet_ntoa(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr), ifa->ifa_name);
+			//broadcast(LEADER_PROPOSE, &my_int_ip, sizeof(my_int_ip));
+			broadcast(LEADER_PROPOSE, my_int_ip, sizeof(long));
+			
 			goto ip_found;
 
 		}
@@ -144,15 +145,17 @@ static void do_leader_election(void) {
 }
 
 
-static void leader_propose(int sock, void *content, size_t size) {
+//static void leader_propose(int sock, void *content, size_t size) {
+static void leader_propose(int sock, long content, size_t size) {
 	(void)size;
-
 	leader_proposals_sockets[last_proposal] = sock;
-	leader_proposals[last_proposal++] = *(long *)content;
+	//leader_proposals[last_proposal++] = *(long *)content;
+	leader_proposals[last_proposal++] = content;
 }
 
 
-static void leader_heartbeat(int sock, void *content, size_t size) {
+//static void leader_heartbeat(int sock, void *content, size_t size) {
+static void leader_heartbeat(int sock, long content, size_t size) {
 	(void)content;
 	(void)size;
 
@@ -161,9 +164,13 @@ static void leader_heartbeat(int sock, void *content, size_t size) {
 
 	
 static void suspect_leader(void) {
+	
+	// if no heartbeat has receveid during the threshold then suspect the leader...
+	// ...it triggers a new leader_election phase
 	if(timer_value_seconds(heartbeat) > LEADER_SUSPECT_THRESHOLD) {
-
-		close(leader_socket);
+		/*****/
+		//close(leader_socket);
+		/*****/
 		leader_socket = -1;
 		if(am_i_leader) // Stilly sanity check
 			am_i_leader = false;
@@ -178,13 +185,16 @@ static void *leader_loop(void *args) {
 		sleep(LEADER_SLEEP);
 
 		suspect_leader();
-
+		
+		// if there is no leader, we need a leader election
 		if(leader_socket == -1) {
 			do_leader_election();
 		}
-
+		
+		// only the leader sends heartbeat
 		if(am_i_leader) {
-			broadcast(LEADER_HEARTBEAT, NULL, 0);
+			//broadcast(LEADER_HEARTBEAT, NULL, 0);
+			broadcast(LEADER_HEARTBEAT, 0, 0);
 		}
 	}
 }
@@ -204,29 +214,22 @@ bool send_to_leader(void *payload, size_t size) {
 
 int initialize_leader(char *controllers_path) {
 
-	printf("Initializing leader election...\n");
-
 	// Count controllers
 	FILE *f;
-        char line[128];
-        int i = 0;
+    char line[128];
 
-        f = fopen(controllers_path, "r");
-        if(f == NULL) {
-                perror("Unable to count controllers for leader election");
-                exit(EXIT_FAILURE);
-        }
-
-        while (fgets(line, 128, f) != NULL) {
-			controllers++;
-        }
-
-	
-
+    f = fopen(controllers_path, "r");
+    if(f == NULL){
+		perror("Unable to count controllers for leader election");
+		exit(EXIT_FAILURE);
+    }
+    
+    while (fgets(line, 128, f) != NULL){
+		controllers++;
+    }
+    
 	timer_start(heartbeat);
 	register_callback(LEADER_HEARTBEAT, leader_heartbeat);
 	register_callback(LEADER_PROPOSE, leader_propose);
 	create_thread(leader_loop, NULL);
-	
-	printf("Leader election UP!\n");
 }
