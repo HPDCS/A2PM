@@ -14,17 +14,17 @@ WEKA_PATH="c:/Programmi/Weka-3-7/weka.jar"
 lasso_algorithm="iteratedRidge"
 
 # What do we have to run?
-purge_old_data=true
-run_datapoint_aggregation=true
-run_lasso=true
-apply_lasso=true
-plot_original_parameters=true
-plot_lasso_as_predictor=true
-run_weka_linear=true
-run_weka_m5p=true
-run_weka_REPtree=true
-run_weka_svm=true
-run_weka_svm2=true
+purge_old_data=false
+run_datapoint_aggregation=false
+run_lasso=false
+apply_lasso=false
+plot_original_parameters=false
+plot_lasso_as_predictor=false
+run_weka_linear=false
+run_weka_m5p=false
+run_weka_REPtree=false
+run_weka_svm=false
+run_weka_svm2=false
 evaluate_error=true
 generate_report=true
 

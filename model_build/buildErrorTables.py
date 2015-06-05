@@ -33,7 +33,6 @@ def readLassoFile(fname):
 
 # This is the reader for Weka datapoints	
 def readWekaFile(fname):
-
 	datapoints = []
 	fd = open(fname, 'r')
 	lines = fd.readlines()

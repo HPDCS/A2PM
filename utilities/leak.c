@@ -15,8 +15,8 @@
 #define RESET "\033[0m"
 
 
-#define MIN_LEAK 1024		// in bytes
-#define MAX_LEAK 10*1024*1024	// in bytes
+#define MIN_LEAK 1024*1024		// in bytes
+#define MAX_LEAK 1024*1024*1024	// in bytes
 
 #define MIN_MEAN 500	// in usec (0.5 seconds)
 #define MAX_MEAN 1000000	// in usec (2 seconds)
