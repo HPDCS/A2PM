@@ -1,6 +1,6 @@
 
 all:
-	$(CC) client.c -o client
+	$(CC) client.c -g -o client
 	$(CC) halter.c -o halter
 	$(CC) server.c -o server -lpthread
 
