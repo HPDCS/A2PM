@@ -29,6 +29,7 @@ unsigned char bcast_buff[MAX_MESSAGE];
 __thread fd_set socks;
 __thread int highsock;
 
+// Make a socket non-blocking
 void setnonblocking(int sock) {
 	int opts;
 
@@ -52,6 +53,8 @@ void build_select_list(){
 	if(sock_udp > highsock) highsock = sock_udp;
 }
 
+// This function implements the actual transfer of messages to all controllers which
+// were registered at startup.
 static void do_bcast(void) {
 	struct sockaddr_in client;
 	int index;
@@ -67,6 +70,10 @@ static void do_bcast(void) {
 	new_bcast_message = false;
 }
 
+
+// This is the entry point of the demultiplexer of callback functions
+// registered to manage messages which are received from controllers as
+// broadcast functions.
 static void call_function(int sock, msg_struct msg){
 	int index;
 	for(index = 0; index < MAX_CALLBACKS; index++){
@@ -81,6 +88,8 @@ static void call_function(int sock, msg_struct msg){
 	}
 }
 
+// This is the main thread which manages the reception of information
+// from remote broadcasts
 static void *broadcast_loop(void *args) {
 	(void)args;
 
@@ -89,7 +98,7 @@ static void *broadcast_loop(void *args) {
 	int index;
 	struct timeval timeout;
 	msg_struct msg;
-	
+
 	bool my_new_bcast_message;
 
 	while(1){
@@ -97,7 +106,7 @@ static void *broadcast_loop(void *args) {
 		build_select_list();
 		
 		my_new_bcast_message = new_bcast_message;
-		
+
 		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
 		readsocks = select(highsock + 1, &socks, (fd_set *) 0, (fd_set *) 0, &timeout);
@@ -116,19 +125,21 @@ static void *broadcast_loop(void *args) {
 				struct sockaddr_in receiver;
 				unsigned int size_receiver = sizeof(receiver);
 				transferred_bytes = recvfrom(sock_udp, &msg, sizeof(msg_struct), 0, (struct sockaddr *)&receiver, &size_receiver);
-				
+		
 				if(msg.payload == (long)0){
 					printf("Received heartbeat from the leader %s\n", inet_ntoa(receiver.sin_addr));
 				} else{
 					printf("Received the value %ld from controller %s\n", msg.payload, inet_ntoa(receiver.sin_addr));
 				}
-				
+
 				if(transferred_bytes < 0){
 					perror("read_less_than_0");
 				}
 				
 				int i;
+
 				//find the index to call function
+
 				for(i = 0; i < last_controller_socket; i++){
 					if(!strcmp(connections[i].ip, inet_ntoa(receiver.sin_addr))){
 						connections[i].value = msg.payload;
@@ -190,6 +201,7 @@ void initialize_broadcast(const char *controllers_path) {
 }
 
 void broadcast(int type, long payload, size_t size) {
+
 
 	if(size > MAX_MESSAGE) {
 		fprintf(stderr, "%s:%d Sending a message too large\n", __FILE__, __LINE__);

@@ -1,5 +1,3 @@
-﻿// TODO IMPORTANTE: le recv e send NON sono a prova di segnale ancora! Cambiare sta cosa appena possibile!!!
-
 #include "sockhelp.h"
 #include <ctype.h>
 #include <sys/time.h>
@@ -58,8 +56,8 @@ struct vm_data * vm_data_set[NUMBER_GROUPS];
 int sock; // Listening socket
 __thread void *buffer_from_client;
 __thread void *buffer_to_client;
-__thread void *aux_buffer_from_client; //LUCA:
-__thread void *aux_buffer_to_client; //LUCA:
+__thread void *aux_buffer_from_client;
+__thread void *aux_buffer_to_client;
 __thread int connectlist[2];  // One thread handles only 2 sockets
 __thread fd_set socks; // Socket file descriptors we want to wake up for, using select()
 __thread int highsock; //* Highest #'d file descriptor, needed for select()
@@ -80,8 +78,7 @@ void check_vm_data_set_size(int service){
 /*
  * delete a vm
  */
-// TODO: per ora suppongo che ogni vm abbia un suo ip
-// TODO: c'è bisogno di un mutex???? (forse no, perchè thread unico?)
+
 void delete_vm(char * ip_address, int service, int port){
 	char ip[16];
 	strcpy(ip, ip_address);
@@ -110,6 +107,8 @@ void append_buffer(char * original_buffer, char * aux_buffer, int * bytes_origin
 	bzero(aux_buffer, FORWARD_BUFFER_SIZE);
 }
 
+// Look for an IP address in the internal representation
+
 int search_ip(struct vm_data * tpcw_instance, char * ip){
 	int index;
 	for(index = 0; index < MAX_CONNECTED_CLIENTS; index++){
@@ -120,12 +119,15 @@ int search_ip(struct vm_data * tpcw_instance, char * ip){
 	return 0;
 }
 
+
+// Check whether a remote host has already connected to me
 struct sockaddr_in check_already_connected(char * ip){
 	
 	struct sockaddr_in client;
 	client.sin_family = AF_INET;
 	
-	// TODO: remove comments when all services will be available
+	// TODO: this code is commented only for debug purposes, do not remove
+
 	/*int index;
 	int service;
 	for(service = 0; service < NUMBER_GROUPS; service){
@@ -164,9 +166,11 @@ struct sockaddr_in check_already_connected(char * ip){
 	return client;
 }
 
+// Get the current open socket to a give client's IP
 int get_current_socket(char * ip_client) {
 	
-	// TODO: remove comments to try with all the services
+	// TODO: this code is commented only for debug purposes, do not remove
+
 	/*int index;
 	for(index = 0; index < NUMBER_GROUPS; index++){
 		if(actual_index[index] == current_vms[index])
@@ -196,11 +200,8 @@ int get_current_socket(char * ip_client) {
 	return da_socket;
 
 }
-/**/
-/* UP TO HERE */
 
-
-
+// Make an already-created socket non-blocking
 void setnonblocking(int sock) {
 	int opts;
 
@@ -217,6 +218,8 @@ void setnonblocking(int sock) {
 	return;
 }
 
+
+// This creates a selection list for select()
 void build_select_list() {
 	int listnum; //Current item in connectlist for for loops
 
@@ -243,6 +246,7 @@ void build_select_list() {
 	}
 }
 
+// Manage the actual forwarding of data
 void *deal_with_data(void *sockptr) {
 
 	struct arg_thread arg = *(struct arg_thread *)sockptr;
@@ -281,11 +285,12 @@ void *deal_with_data(void *sockptr) {
 	connectlist[0] = client_socket;	
 	connectlist[1] = vm_socket;
 
+	// We never finish forwarding data!
 	while (1) {
 		
                 build_select_list();
 
-                // This can be even set to infinite... we have to decide
+				// Setup a timeout
                 timeout.tv_sec = 1;
                 timeout.tv_usec = 0;
 
@@ -356,7 +361,7 @@ void *deal_with_data(void *sockptr) {
                     bytes_ready_from_client = 0;
 					bzero(buffer_from_client, FORWARD_BUFFER_SIZE);
                 }
-				/*** PARTE MIA ***/
+
 	            // Always perform sock_read, if it returns a number greater than zero
 	            // something has been read then we've to append aux buffer to previous buffer (pointers)
 	            transferred_bytes = sock_read(vm_socket, aux_buffer_to_client, FORWARD_BUFFER_SIZE);
@@ -579,7 +584,7 @@ int main (int argc, char *argv[]) {
 		strcpy(vm_client.ip_address,inet_ntoa(client.sin_addr));
 		vm_client.port = ntohs(client.sin_port);
 		
-		printf("ARRIVATO NUOVO CLIENT CON IP: %s e PORT: %d\n", vm_client.ip_address, vm_client.port);
+		printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
 		res_thread = create_thread(deal_with_data, &vm_client);
 		if(res_thread != 0){
 			pthread_mutex_unlock(&mutex);

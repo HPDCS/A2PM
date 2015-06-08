@@ -1,6 +1,6 @@
 #include "ml_models.h"
 
-
+// This computes the prediction model for linear regression
 float calculate_linear_regression(system_features_with_slopes f) {
 	return
       0.5929 *  f.gen_time +
@@ -20,6 +20,8 @@ float calculate_linear_regression(system_features_with_slopes f) {
     242.8923;
 }
 
+
+// This evaluates the MTTF
 float get_predicted_mttf(int ml_model, system_features last_features, system_features current_features, system_features init_features){
 
 	system_features_with_slopes f;
@@ -45,6 +47,7 @@ float get_predicted_mttf(int ml_model, system_features last_features, system_fea
     return calculate_linear_regression(f);
 }
 
+// This evaluates the RTTF
 float get_predicted_rttc(int ml_model, system_features last_features, system_features current_features) {
 
 	system_features_with_slopes f;

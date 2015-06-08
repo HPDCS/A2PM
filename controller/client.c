@@ -43,6 +43,7 @@ time_t now;
 char send_buff[BUFSIZE];
 char recv_buff[BUFSIZE];
 
+// Get the features from the feature monitor client
 void get_features(char * output){
     FILE * t;
     
@@ -128,7 +129,6 @@ void get_features(char * output){
     
     sprintf(output,"%sCPU: %f %f %f %f %f %f", output, cpu_user, cpu_nice, cpu_system, cpu_iowait, cpu_steal, cpu_idle);
     
-    /*** COMMENTO ***/
     //printf("%s\n",output);
     
     return;
