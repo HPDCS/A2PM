@@ -70,9 +70,11 @@ static void do_bcast(void) {
 static void call_function(int sock, msg_struct msg){
 	int index;
 	for(index = 0; index < MAX_CALLBACKS; index++){
-		if(msg.type == 0) continue;
+		if(msg.type == 0) {
+			printf("MSG.TYPE = 0\n");
+			continue;
+		}
 		if(msg.type == callbacks[index].type){
-			//callbacks[index].callback(sock,&msg.payload,msg.size);
 			callbacks[index].callback(sock,msg.payload,msg.size);
 			return;
 		}
@@ -87,7 +89,6 @@ static void *broadcast_loop(void *args) {
 	int index;
 	struct timeval timeout;
 	msg_struct msg;
-	//msg.payload = malloc(SIZE_PAYLOAD);
 	
 	bool my_new_bcast_message;
 
@@ -97,7 +98,7 @@ static void *broadcast_loop(void *args) {
 		
 		my_new_bcast_message = new_bcast_message;
 		
-		timeout.tv_sec = 5;
+		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
 		readsocks = select(highsock + 1, &socks, (fd_set *) 0, (fd_set *) 0, &timeout);
 		if (readsocks < 0) {
@@ -115,20 +116,26 @@ static void *broadcast_loop(void *args) {
 				struct sockaddr_in receiver;
 				unsigned int size_receiver = sizeof(receiver);
 				transferred_bytes = recvfrom(sock_udp, &msg, sizeof(msg_struct), 0, (struct sockaddr *)&receiver, &size_receiver);
-				printf("Received the value %ld from controller %s\n", msg.payload, inet_ntoa(receiver.sin_addr));
+				
+				if(msg.payload == (long)0){
+					printf("Received heartbeat from the leader %s\n", inet_ntoa(receiver.sin_addr));
+				} else{
+					printf("Received the value %ld from controller %s\n", msg.payload, inet_ntoa(receiver.sin_addr));
+				}
+				
 				if(transferred_bytes < 0){
 					perror("read_less_than_0");
 				}
 				
 				int i;
+				//find the index to call function
 				for(i = 0; i < last_controller_socket; i++){
 					if(!strcmp(connections[i].ip, inet_ntoa(receiver.sin_addr))){
 						connections[i].value = msg.payload;
 						break;
 					}
 				}
-				/* CAMBIARE QUANDO METTERO' PIU' CONTROLLER!!! */
-				//call_function(controllers_sockets[0],msg);
+
 				call_function(connections[i].socket,msg);
 			}
 		}
@@ -183,25 +190,18 @@ void initialize_broadcast(const char *controllers_path) {
 }
 
 void broadcast(int type, long payload, size_t size) {
-//void broadcast(int type, void *payload, size_t size) {
 
 	if(size > MAX_MESSAGE) {
 		fprintf(stderr, "%s:%d Sending a message too large\n", __FILE__, __LINE__);
 		abort();
 	}
-	//msg_temp.payload = malloc(SIZE_PAYLOAD);
-	//msg_temp.payload = malloc(sizeof(void *));
 	msg_temp.type = type;
 	msg_temp.payload = payload;
-	//memcpy(msg_temp.payload,payload,size);
 	msg_temp.size = size;
-	
-	//memcpy(bcast_buff, payload, size);
 
 	new_bcast_message = true;
 }
 
-//void register_callback(int type, void (*f)(int sock, void *content, size_t size)) {
 void register_callback(int type, void (*f)(int sock, long content, size_t size)) {
 	callbacks[last_callback].type = type;
 	callbacks[last_callback++].callback = f;

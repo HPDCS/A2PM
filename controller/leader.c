@@ -15,7 +15,7 @@
 #include "timer.h"
 
 #define LEADER_SLEEP 1
-#define LEADER_SUSPECT_THRESHOLD 10
+#define LEADER_SUSPECT_THRESHOLD 20
 #define LEADER_PROPOSE_THRESHOLD 10
 
 
@@ -36,6 +36,17 @@ static long leader_proposals[MAX_CONTROLLERS];
 static int leader_proposals_sockets[MAX_CONTROLLERS];
 static int last_proposal;
 
+long my_int_ip;
+
+void get_am_i_leader(int leader_sock){
+	int i;
+	for(i = 0; i < last_proposal; i++){
+		if(leader_proposals_sockets[i] == leader_sock && leader_proposals[i] == my_int_ip){
+			am_i_leader = true;
+			break;
+		}
+	}
+}
 
 static void do_agreement_reduction(void) {
 	int i;
@@ -53,7 +64,6 @@ static void do_agreement_reduction(void) {
 			leader = leader_proposals_sockets[i];
 		}
 	}
-	// here 
 
 	if(leader == -1) {
 		fprintf(stderr, "%s:%d: Error in leader election\n", __FILE__, __LINE__);
@@ -63,6 +73,7 @@ static void do_agreement_reduction(void) {
 
 	agreement_running = false;
 	leader_socket = leader;
+	get_am_i_leader(leader_socket);
 }
 
 
@@ -70,7 +81,7 @@ static void do_leader_election(void) {
 
 	struct ifaddrs *ifaddr, *ifa;
 	int family, s, n;
-	long my_int_ip;
+
 
 	if(agreement_running) {
 		do_agreement_reduction();
@@ -129,7 +140,6 @@ static void do_leader_election(void) {
 		if (family == AF_INET && !strcmp(ifa->ifa_name,"eth0")) {
 			my_int_ip = (long)(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr.s_addr);
 			printf("LEADER - Proposed ip_address: %s on net interface %s\n", inet_ntoa(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr), ifa->ifa_name);
-			//broadcast(LEADER_PROPOSE, &my_int_ip, sizeof(my_int_ip));
 			broadcast(LEADER_PROPOSE, my_int_ip, sizeof(long));
 			
 			goto ip_found;
@@ -144,17 +154,12 @@ static void do_leader_election(void) {
 	freeifaddrs(ifaddr);
 }
 
-
-//static void leader_propose(int sock, void *content, size_t size) {
 static void leader_propose(int sock, long content, size_t size) {
 	(void)size;
 	leader_proposals_sockets[last_proposal] = sock;
-	//leader_proposals[last_proposal++] = *(long *)content;
 	leader_proposals[last_proposal++] = content;
 }
 
-
-//static void leader_heartbeat(int sock, void *content, size_t size) {
 static void leader_heartbeat(int sock, long content, size_t size) {
 	(void)content;
 	(void)size;
@@ -168,9 +173,7 @@ static void suspect_leader(void) {
 	// if no heartbeat has receveid during the threshold then suspect the leader...
 	// ...it triggers a new leader_election phase
 	if(timer_value_seconds(heartbeat) > LEADER_SUSPECT_THRESHOLD) {
-		/*****/
-		//close(leader_socket);
-		/*****/
+		close(leader_socket);
 		leader_socket = -1;
 		if(am_i_leader) // Stilly sanity check
 			am_i_leader = false;
@@ -184,7 +187,10 @@ static void *leader_loop(void *args) {
 	while(true) {
 		sleep(LEADER_SLEEP);
 
-		suspect_leader();
+		// do it just if a leader exists
+		if(leader_socket != -1){
+			suspect_leader();
+		}
 		
 		// if there is no leader, we need a leader election
 		if(leader_socket == -1) {
@@ -193,9 +199,10 @@ static void *leader_loop(void *args) {
 		
 		// only the leader sends heartbeat
 		if(am_i_leader) {
-			//broadcast(LEADER_HEARTBEAT, NULL, 0);
 			broadcast(LEADER_HEARTBEAT, 0, 0);
 		}
+		
+		printf("LEADER: leader_socket is: %d\n", leader_socket);
 	}
 }
 
