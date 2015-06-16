@@ -117,8 +117,10 @@ void initialize_broadcast(const char *controllers_path) {
 	}
 
 	while (fgets(line, 128, f) != NULL) {
-		//controllers_sockets[i++] = make_connection(GLOBAL_CONTROLLER_PORT, SOCK_DGRAM, line);
-		controllers_sockets[i++] = make_connection(GLOBAL_CONTROLLER_PORT, SOCK_STREAM, line);
+		do{
+			controllers_sockets[i] = make_connection(GLOBAL_CONTROLLER_PORT, SOCK_DGRAM, line);
+		}while(controllers_sockets[i] < 0);
+		i++;
 	}
 	last_controller_socket = i;
 

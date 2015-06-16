@@ -196,4 +196,3 @@ int initialize_leader(char *controllers_path) {
 	register_callback(LEADER_PROPOSE, leader_propose);
 	create_thread(leader_loop, NULL);
 }
-

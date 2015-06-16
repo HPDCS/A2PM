@@ -24,7 +24,7 @@
 
 #define MTTF_SLEEP				10		// avg rej rate period
 #define PATH 					"/home/luca/Scrivania/controllers_list.txt"
-
+#define GLOBAL_CONTROLLER_PORT	4567
 
 int ml_model;                           // used machine-learning model
 struct timeval communication_timeout;
@@ -33,10 +33,11 @@ int allocated_vms[NUMBER_GROUPS];       // number of allocated spaces for the VM
 pthread_mutex_t mutex;                  // mutex used to update current_vms and allocated_vms values
 int state_man_vm = 0;
 pthread_mutex_t manage_vm_mutex;
-
+pthread_mutex_t lb_mutex;
 pthread_mutex_t mttf_mutex;
 float * rej_rate;
 int index_rej_rate = 0;
+int sockfd_balancer;	//socket number for Load Balancer (LB)
 
 /*** TODO: initialize with real provided services ***/
 enum operations{
@@ -95,13 +96,10 @@ void store_last_system_features(system_features *last_features, system_features 
 
 /* This function compacts groups in vm_data_set 
  * when there are closed connections
- * Using mutex we're sure that there are no gaps
- * in the sequence representation of VMs
  */
-void manage_disconnected_vms(struct vm_data vm){
+void compact_vm_data_set(struct vm_data vm){
     int index;
     int group;
-    pthread_mutex_lock(&mutex);
     group = vm.service_info.service;
     for (index = 0; index < current_vms[group]; index++) {
         if (strcmp(vm_data_set[group][index].ip_address, vm.ip_address) == 0) {
@@ -109,7 +107,6 @@ void manage_disconnected_vms(struct vm_data vm){
             break;
         }
     }
-    pthread_mutex_unlock(&mutex);
 }
 
 /* This function looks for a standby VM and 
@@ -120,7 +117,7 @@ void switch_active_machine(struct vm_data vm) {
     int index;
     char send_buff[BUFSIZE];
     
-    pthread_mutex_lock(&mutex);
+    //pthread_mutex_lock(&mutex);
     vm.service_info.state = REJUVENATING;
     for (index = 0; index < current_vms[vm.service_info.service]; index++) {
         if (vm_data_set[vm.service_info.service][index].service_info.state == STAND_BY) {
@@ -128,7 +125,7 @@ void switch_active_machine(struct vm_data vm) {
             break;
         }
     }
-    pthread_mutex_unlock(&mutex);
+    //pthread_mutex_unlock(&mutex);
     vm.last_system_features_stored = 0;
     /*** ASK: notify load balancer with "index" value here? ***/
     
@@ -137,7 +134,7 @@ void switch_active_machine(struct vm_data vm) {
     if ((send(vm.socket, send_buff, BUFSIZE, 0)) == -1) {
         perror("switch_active_machine - send");
         printf("Closing connection with VM %s\n", vm.ip_address);
-        manage_disconnected_vms(vm);
+        compact_vm_data_set(vm);
         close(vm.socket);
     } else{
         printf("REJUVENATE command sent to machine with IP address %s\n", vm.ip_address);
@@ -145,6 +142,7 @@ void switch_active_machine(struct vm_data vm) {
     }
     
 }
+/*
 void * balancer_thread(void * v){
 	int socket;
 	socket = (int)(long)v;
@@ -157,9 +155,19 @@ void * balancer_thread(void * v){
 			printf("Messaggio inviato correttamente al balancer\n");
 			state_man_vm = 0;
 			pthread_mutex_unlock(&manage_vm_mutex);
+			
+			sleep(1);
 		}
 	}
 	
+}*/
+
+void send_command_to_load_balancer(){
+
+	if(send(sockfd_balancer,&virt_machine,sizeof(struct virtual_machine),0) < 0){
+		perror("Error while sending command to load balancer");
+	}
+	printf("Command sent to load balancer\n");
 }
 
 void * mttf_thread(void * args){
@@ -200,7 +208,6 @@ void * mttf_thread(void * args){
 void * communication_thread(void * v){
     struct vm_data vm;
     vm = *(struct vm_data *)v;   // this is exactly the struct stored in the system matrix
-    pthread_mutex_unlock(&mutex);
     
     int numbytes;
     system_features current_features;
@@ -239,20 +246,27 @@ void * communication_thread(void * v){
 				
                 // at least 2 sets of features needed
                 if (vm.last_system_features_stored) {
-					float mean_time_to_fail = get_predicted_mttf(ml_model, vm.last_features, current_features, init_features);
+					//float mean_time_to_fail = get_predicted_mttf(ml_model, vm.last_features, current_features, init_features);
+					float mean_time_to_fail = 1000;
 					pthread_mutex_lock(&mttf_mutex);
 					rej_rate[index_rej_rate++] = (1/mean_time_to_fail);
 					pthread_mutex_unlock(&mttf_mutex);
                     float predicted_time_to_crash = get_predicted_rttc(ml_model, vm.last_features, current_features);
                     printf("Predicted time to crash for VM %s for the service %d is: %f\n", vm.ip_address, vm.service_info.service, predicted_time_to_crash);
                     if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
+                        
+                        //pthread_mutex_lock(&manage_vm_mutex);
+                        pthread_mutex_lock(&mutex);
+                        
                         switch_active_machine(vm);
-                        pthread_mutex_lock(&manage_vm_mutex);
+                        
                         strcpy(virt_machine.ip,vm.ip_address);
-                        virt_machine.port = htons(8080);
+                        virt_machine.port = htons(8080); //TODO
                         virt_machine.service = vm.service_info.service;
                         virt_machine.op = REJ;
-                        state_man_vm = 1;
+                        send_command_to_load_balancer();
+                        pthread_mutex_lock(&mutex);
+                        //state_man_vm = 1;
                         continue;
                     }
                 }
@@ -275,16 +289,18 @@ void * communication_thread(void * v){
         }
     }
     printf("Closing connection with VM %s\n", vm.ip_address);
-    pthread_mutex_lock(&manage_vm_mutex);
+    pthread_mutex_lock(&mutex);
     strcpy(virt_machine.ip,vm.ip_address);
     virt_machine.port = htons(8080);
     virt_machine.service = vm.service_info.service;
     virt_machine.op = DELETE;
-    state_man_vm = 1;
-    manage_disconnected_vms(vm);
+    //state_man_vm = 1;
+    compact_vm_data_set(vm);
+    send_command_to_load_balancer();
     if(close(vm.socket) == 0){
 		printf("Connection correctely closed with VM %s\n", vm.ip_address);
 	}
+	pthread_mutex_unlock(&mutex);
 }
 
 /*
@@ -366,7 +382,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
         
         // increment number of connected CNs
         pthread_mutex_lock(&mutex);
-        
+
         // allocate more slots if the memory is not enough
         if (current_vms[s.service] == allocated_vms[s.service]) {
             vm_data_set[s.service] = realloc(vm_data_set[s.service],sizeof(struct vm_data)*2*allocated_vms[s.service]);
@@ -377,32 +393,33 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
             
             rej_rate = realloc(rej_rate,sizeof(float)*NUMBER_GROUPS*NUMBER_VMs + allocated_vms[s.service] - previously_allocated);
         }
-        
+               
         // assignment phase
         vm_data_set[s.service][current_vms[s.service]].service_info = s;
         strcpy(vm_data_set[s.service][current_vms[s.service]].ip_address, inet_ntoa(client.sin_addr));
         vm_data_set[s.service][current_vms[s.service]].socket = socket;
         vm_data_set[s.service][current_vms[s.service]].port = ntohs(client.sin_port);
         index = current_vms[s.service]++;
-        
+                
         if(s.state == ACTIVE){
-			pthread_mutex_lock(&manage_vm_mutex);
+			
+			//pthread_mutex_lock(&lb_mutex);
 			strcpy(virt_machine.ip,inet_ntoa(client.sin_addr));
 			virt_machine.port = htons(8080);
 			virt_machine.service = s.service;
 			virt_machine.op = ADD;
 			//this flag notifies that the Controller want to communicate with LB
-			state_man_vm = 1;
+			send_command_to_load_balancer();
+			
 		}
-		        
+        
         // make a new thread for each VMs
         printf("Host with IP address %s added in group %d\n", vm_data_set[s.service][index].ip_address, s.service);
         pthread_attr_init(&pthread_custom_attr);
         if((pthread_create(&tid,&pthread_custom_attr,communication_thread,(void *)&vm_data_set[s.service][index])) != 0){
 			perror("accept_new_client - pthread_create");
-			pthread_mutex_unlock(&mutex);
-			pthread_mutex_unlock(&manage_vm_mutex);
 		}
+		pthread_mutex_unlock(&mutex);
     }
     
 }
@@ -435,15 +452,30 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr){
         printf("Setsockopt failed for socket id %i\n", socket);
     if (setsockopt (socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&communication_timeout, sizeof(communication_timeout)) < 0)
         printf("Setsockopt failed for socket id %i\n", socket);
-        
+    sockfd_balancer = socket;
     // make a new thread for each VMs
 	printf("Communication with load_balancer %s established\n", inet_ntoa(balancer.sin_addr));
-	pthread_attr_init(&pthread_custom_attr);
-	if((pthread_create(&tid,&pthread_custom_attr,balancer_thread,(void *)(long)socket)) != 0){
-		perror("accept_load_balancer - pthread_create");
-		return (int)-1;
-	}
 }
+
+/*
+void start_server_dgram(int * sockfd){
+	int sock;
+	struct sockaddr_in temp;
+	
+	if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+		perror("start_server_dgram - socket");
+		exit(1);
+	}
+	
+	temp.sin_family = AF_INET;
+	temp.sin_addr.s_addr = htonl(INADDR_ANY);
+	temp.sin_port = htons(port);
+	
+	if(bind(sock,(struct sockaddr *) &temp, sizeof(temp)) <0){
+		perror("start_server_dgram - bind");
+		exit(1);
+	}
+}*/
 
 /*
  * This function opens the VMCI server for connections;
@@ -474,17 +506,17 @@ void start_server(int * sockfd, int port){
         exit(1);
     }
     *sockfd = sock;
-    printf("Server started, listening on socket %d\n", *sockfd);
-    
 }
 
 
 int main(int argc,char ** argv){
     int sockfd;				//socket number for Computing Nodes (CN)
-    int sockfd_balancer;	//socket number for Load Balancer (LB)
     int port;				//port number for CN
     int port_balancer;		//port number for LB
     int index;
+    
+    int sock_dgram;
+    
     pthread_attr_t pthread_custom_attr;
     pthread_t tid;
     
@@ -517,8 +549,10 @@ int main(int argc,char ** argv){
     
     //Open the local connection
     start_server(&sockfd,port);
+    printf("Server for VMs started, listening on socket %d on port %d\n", sockfd, port);
     //Open the connection with the load_balancer
     start_server(&sockfd_balancer,port_balancer);
+    printf("Server for load balancer started, listening on socket %d on port %d\n", sockfd_balancer, port_balancer);
     
     //Start dedicated thread to communicate with LB
     //It must block until the system is not ready
@@ -528,14 +562,15 @@ int main(int argc,char ** argv){
     pthread_attr_init(&pthread_custom_attr);
     pthread_create(&tid,&pthread_custom_attr,mttf_thread,NULL);
     
+	//start_server_dgram(&sock_dgram);
+    
     //Init of broadcast and leader primitives
-    initialize_broadcast(PATH);
-    initialize_leader(PATH);
+    //initialize_broadcast(PATH);
+    //initialize_leader(PATH);
     
     //Accept new clients
     while(1){
         accept_new_client(sockfd,pthread_custom_attr);
     }
     
-    return 0;
 }
