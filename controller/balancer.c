@@ -12,7 +12,7 @@
 
 #define MAX_NUM_OF_CLIENTS		1024			//Max number of accepted clients
 #define FORWARD_BUFFER_SIZE		1024*1024		//Size of buffers
-#define NUMBER_VMs			1024				//It must be equal to the value in server side in controller
+#define NUMBER_VMs				1024				//It must be equal to the value in server side in controller
 #define NUMBER_GROUPS			3				//It must be equal to the value in server side in controller
 #define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
@@ -83,12 +83,28 @@ void delete_vm(char * ip_address, int service, int port){
 	char ip[16];
 	strcpy(ip, ip_address);
 	int index;
+	
+	pthread_mutex_lock(&mutex);
 	for(index = 0; index < current_vms[service]; index++){
 		if(strcmp(vm_data_set[service][index].ip_address,ip) == 0 && vm_data_set[service][index].port == port){
+			if(current_vms[service] == 1){
+				printf("No more TPCW instances are available\n");
+				current_vms[service] = 0;
+				break;
+			}
+			if(index == current_vms[service] -1){
+				printf("The last active TPCW instance is %s\n", vm_data_set[service][index - 1].ip_address);
+				current_vms[service]--;
+				break;
+			}
+			printf("Deleted TPCW with ip %s and port %d\n", ip, port);
+			printf("Deleting ip %s - Last ip %s\n", vm_data_set[service][index].ip_address, vm_data_set[service][current_vms[service]-1].ip_address);
 			vm_data_set[service][index] = vm_data_set[service][--current_vms[service]];
+			printf("Connected TPCW has ip %s and port %d\n", vm_data_set[service][index].ip_address, vm_data_set[service][index].port);
 			break;
 		}
 	}
+	pthread_mutex_unlock(&mutex);
 }
 
 // Append to the original buffer the content of aux_buffer
@@ -312,7 +328,7 @@ void *deal_with_data(void *sockptr) {
 				// First of all, check if we have something for the client
 				if(bytes_ready_to_client > 0) {
 					//printf("Writing to client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_to_client);
-					printf("Write on client %s on sock %d\n", arg.ip_address, client_socket);
+					printf("Writing to client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
 					if((transferred_bytes = sock_write(client_socket, buffer_to_client, bytes_ready_to_client)) < 0) {
 						perror("write: sending to client from buffer");
 					}
@@ -344,7 +360,7 @@ void *deal_with_data(void *sockptr) {
 				
 				if(bytes_ready_from_client > 0) {
 					//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
-					printf("Read from client %s on socket %d\n", arg.ip_address, client_socket);
+					printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
 				}
 				
 			}
@@ -355,7 +371,8 @@ void *deal_with_data(void *sockptr) {
 				if(bytes_ready_from_client > 0) {
 
 					//printf("Writing to VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_from_client);
-					printf("Write to VM on socket %d\n", vm_socket);
+					printf("Writing to VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
+					
                     if((transferred_bytes = sock_write(vm_socket, buffer_from_client, bytes_ready_from_client)) < 0) {
 						perror("write: sending to vm from client");
                     }
@@ -387,7 +404,7 @@ void *deal_with_data(void *sockptr) {
 				
 				if(bytes_ready_to_client > 0) {
 					//printf("Read from VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_to_client);
-					printf("Read from VM on socket %d\n", vm_socket);
+					printf("Read from VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
 				}
 
 			}
@@ -550,12 +567,11 @@ int main (int argc, char *argv[]) {
 
 	// Get the address information, and bind it to the socket
 	ascport = argv[1]; //argv[1] has to be a service name (not a port)
-	//port = atoport(ascport, NULL); //sockethelp.c
-	port = atoi(argv[4]);
+	port = atoi(argv[4]); //sockethelp.c
 	memset((char *) &server_address, 0, sizeof(server_address));
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-	server_address.sin_port =htons(port);
+	server_address.sin_port = htons(port);
 	if (bind(sock, (struct sockaddr *) &server_address,
 	  sizeof(server_address)) < 0 ) {
 		perror("bind");
