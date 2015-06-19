@@ -12,9 +12,9 @@
 
 #define MAX_NUM_OF_CLIENTS		1024			//Max number of accepted clients
 #define FORWARD_BUFFER_SIZE		1024*1024		//Size of buffers
-#define NUMBER_VMs				5				//It must be equal to the value in server side in controller
+#define NUMBER_VMs			1024				//It must be equal to the value in server side in controller
 #define NUMBER_GROUPS			3				//It must be equal to the value in server side in controller
-#define MAX_CONNECTED_CLIENTS	5				//It represents the max number of connected clients
+#define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
 
 int current_vms[NUMBER_GROUPS];				//Number of connected VMs
@@ -194,6 +194,7 @@ int get_current_socket(char * ip_client) {
 		perror("get_current_socket: connect_to_controller");
 		exit(EXIT_FAILURE);
 	}
+	printf("TPCW IP ADDRESS %s\n", inet_ntoa(temp.sin_addr));
 	printf("\n\n\n*** CONNECTION ESTABLISHED WITH TPCW - SOCKET %d ***\n\n\n", da_socket);
 	setnonblocking(da_socket); 
 	
@@ -310,8 +311,8 @@ void *deal_with_data(void *sockptr) {
 
 				// First of all, check if we have something for the client
 				if(bytes_ready_to_client > 0) {
-					printf("Writing to client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_to_client);
-
+					//printf("Writing to client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_to_client);
+					printf("Write on client %s on sock %d\n", arg.ip_address, client_socket);
 					if((transferred_bytes = sock_write(client_socket, buffer_to_client, bytes_ready_to_client)) < 0) {
 						perror("write: sending to client from buffer");
 					}
@@ -342,7 +343,8 @@ void *deal_with_data(void *sockptr) {
 				}
 				
 				if(bytes_ready_from_client > 0) {
-					printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
+					//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
+					printf("Read from client %s on socket %d\n", arg.ip_address, client_socket);
 				}
 				
 			}
@@ -352,8 +354,8 @@ void *deal_with_data(void *sockptr) {
 				// First of all, check if we have something for the VM to send
 				if(bytes_ready_from_client > 0) {
 
-					printf("Writing to VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_from_client);
-
+					//printf("Writing to VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_from_client);
+					printf("Write to VM on socket %d\n", vm_socket);
                     if((transferred_bytes = sock_write(vm_socket, buffer_from_client, bytes_ready_from_client)) < 0) {
 						perror("write: sending to vm from client");
                     }
@@ -384,7 +386,8 @@ void *deal_with_data(void *sockptr) {
 				}
 				
 				if(bytes_ready_to_client > 0) {
-					printf("Read from VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_to_client);
+					//printf("Read from VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_to_client);
+					printf("Read from VM on socket %d\n", vm_socket);
 				}
 
 			}
@@ -504,8 +507,8 @@ int main (int argc, char *argv[]) {
 	// Service_name: used to collect all the info about the forwarder net infos
 	// ip_controller: ip used to contact the controller
 	// port_controller: port number used to contact the controller
-	if (argc != 4) {
-		printf("Usage: %s Service_name ip_controller port_controller\n",argv[0]);
+	if (argc != 5) {
+		printf("Usage: %s Service_name ip_controller port_controller port_tpcw\n",argv[0]);
 		exit(EXIT_FAILURE);
 	}
 	
@@ -547,11 +550,12 @@ int main (int argc, char *argv[]) {
 
 	// Get the address information, and bind it to the socket
 	ascport = argv[1]; //argv[1] has to be a service name (not a port)
-	port = atoport(ascport, NULL); //sockethelp.c
+	//port = atoport(ascport, NULL); //sockethelp.c
+	port = atoi(argv[4]);
 	memset((char *) &server_address, 0, sizeof(server_address));
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-	server_address.sin_port = port;
+	server_address.sin_port =htons(port);
 	if (bind(sock, (struct sockaddr *) &server_address,
 	  sizeof(server_address)) < 0 ) {
 		perror("bind");
@@ -559,7 +563,10 @@ int main (int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	listen(sock, MAX_NUM_OF_CLIENTS);
+	if(listen(sock, MAX_NUM_OF_CLIENTS) < 0){
+		perror("listen: ");
+	}
+	printf("Listening on port %d\n", port);
 	
 	// Accepting clients
 	while(1) {
@@ -575,7 +582,7 @@ int main (int argc, char *argv[]) {
         	
 		setnonblocking(connection);
 
-		//printf("accepted from %d\n", connection);
+		printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
 
 		struct arg_thread vm_client;
 		
