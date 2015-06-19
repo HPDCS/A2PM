@@ -14,7 +14,7 @@
 #define FORWARD_BUFFER_SIZE		1024*1024		//Size of buffers
 #define NUMBER_VMs				1024				//It must be equal to the value in server side in controller
 #define NUMBER_GROUPS			3				//It must be equal to the value in server side in controller
-#define MAX_CONNECTED_CLIENTS	5				//It represents the max number of connected clients
+#define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
 
 int current_vms[NUMBER_GROUPS];				//Number of connected VMs
@@ -210,6 +210,7 @@ int get_current_socket(char * ip_client) {
 		perror("get_current_socket: connect_to_controller");
 		exit(EXIT_FAILURE);
 	}
+	printf("TPCW IP ADDRESS %s\n", inet_ntoa(temp.sin_addr));
 	printf("\n\n\n*** CONNECTION ESTABLISHED WITH TPCW - SOCKET %d ***\n\n\n", da_socket);
 	setnonblocking(da_socket); 
 	
@@ -524,7 +525,7 @@ int main (int argc, char *argv[]) {
 	// ip_controller: ip used to contact the controller
 	// port_controller: port number used to contact the controller
 	if (argc != 5) {
-		printf("Usage: %s Service_name ip_controller port_controller client_port\n",argv[0]);
+		printf("Usage: %s Service_name ip_controller port_controller port_tpcw\n",argv[0]);
 		exit(EXIT_FAILURE);
 	}
 	
@@ -578,7 +579,10 @@ int main (int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	listen(sock, MAX_NUM_OF_CLIENTS);
+	if(listen(sock, MAX_NUM_OF_CLIENTS) < 0){
+		perror("listen: ");
+	}
+	printf("Listening on port %d\n", port);
 	
 	// Accepting clients
 	while(1) {
@@ -594,7 +598,7 @@ int main (int argc, char *argv[]) {
         	
 		setnonblocking(connection);
 
-		//printf("accepted from %d\n", connection);
+		printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
 
 		struct arg_thread vm_client;
 		
