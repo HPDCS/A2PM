@@ -57,6 +57,9 @@ static void do_agreement_reduction(void) {
 	if(last_proposal < controllers && timer_value_seconds(leader_propose_timer) <= LEADER_PROPOSE_THRESHOLD)
 		return;
 	
+	if(last_proposal < controllers)
+		printf("Missed some controllers' proposals\n");
+	
 	// for all the proposal, searches for the greatest one
 	for(i = 0; i < last_proposal; i++) {
 		if(leader_proposals[i] > id) {
