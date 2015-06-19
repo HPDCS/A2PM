@@ -3,21 +3,22 @@
 // This computes the prediction model for linear regression
 float calculate_linear_regression(system_features_with_slopes f) {
 	return
-      0.5929 *  f.gen_time +
-     -0.2645 *  f.n_th_slope +
-     -0.0002 *  f.mem_used_slope +
-      0.0002 *  f.mem_free_slope +
-      0.4242 *  f.cpu_user_slope +
-     -0.9884 *  f.cpu_idle_slope +
-     -0.459  *  f.n_th +
-      0.0002 *  f.mem_free +
-     -0.0013 *  f.mem_buffers +
-      0.0001 *  f.mem_cached +
-     -0.0004 *  f.swap_used +
-      1.1191 *  f.cpu_user +
-      0.9517 *  f.cpu_system +
-      0.8971 *  f.cpu_idle +
-    242.8923;
+    -566.944  *  GenTime +
+    -80.1021 *  n_th_slope +
+    -15.8269 *  mem_buffers_slope +
+    59.5421 *  cpu_user_slope +
+    -46.2345 *  cpu_steal_slope +
+    -46.51   *  cpu_idle_slope +
+    7.6227 *  n_th +
+    -0.0012 *  mem_used +
+    -0.0029 *  mem_buffers +
+    0.0002 *  mem_cached +
+    71.333  *  cpu_user +
+    72.2214 *  cpu_nice +
+    -36.6341 *  cpu_system +
+    -21.3804 *  cpu_steal +
+    23.6648 *  cpu_idle +
+    -352.1951
 }
 
 
