@@ -84,12 +84,12 @@ struct virtual_machine{
 struct virtual_machine virt_machine;
 
 /* Fill current_features */
-void get_feature(char *features, system_features current_features) {
+void get_feature(char *features, system_features *current_features) {
     sscanf(features, "Datapoint: %f %d\nMemory: %d %d %d %d %d %d\nSwap: %d %d %d\nCPU: %f %f %f %f %f %f",
-           &current_features.time, &current_features.n_th,
-           &current_features.mem_total,&current_features.mem_used,&current_features.mem_free,&current_features.mem_shared,&current_features.mem_buffers,&current_features.mem_cached,
-           &current_features.swap_total,&current_features.swap_used,&current_features.swap_free,
-           &current_features.cpu_user,&current_features.cpu_nice,&current_features.cpu_system,&current_features.cpu_iowait,&current_features.cpu_steal,&current_features.cpu_idle);
+           &current_features->time, &current_features->n_th,
+           &current_features->mem_total,&current_features->mem_used,&current_features->mem_free,&current_features->mem_shared,&current_features->mem_buffers,&current_features->mem_cached,
+           &current_features->swap_total,&current_features->swap_used,&current_features->swap_free,
+           &current_features->cpu_user,&current_features->cpu_nice,&current_features->cpu_system,&current_features->cpu_iowait,&current_features->cpu_steal,&current_features->cpu_idle);
 }
 
 void store_last_system_features(system_features *last_features, system_features current_features) {
@@ -284,7 +284,7 @@ void * communication_thread(void * v){
                 printf("%s\n", recv_buff);
                 
                 fflush(stdout);
-                get_feature(recv_buff, current_features);
+                get_feature(recv_buff, &current_features);
                 
                 // fill init_features only the first time
                 if(!flag_init_features){
@@ -298,10 +298,17 @@ void * communication_thread(void * v){
 					pthread_mutex_lock(&mttf_mutex);
 					rej_rate[index_rej_rate++] = (1/mean_time_to_fail);
 					pthread_mutex_unlock(&mttf_mutex);
-                    //float predicted_time_to_crash = get_predicted_rttc(ml_model, vm.last_features, current_features);
-                    float predicted_time_to_crash = 1000;
+					printf("predicted MTTF: %f\n", mean_time_to_fail);
+                    float predicted_time_to_crash = get_predicted_rttc(ml_model, vm->last_features, current_features);
+                    //float predicted_time_to_crash = 1000;
                     printf("Predicted time to crash for VM %s for the service %d is: %f\n", vm->ip_address, vm->service_info.service, predicted_time_to_crash);
-                    if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
+
+
+			/////// ATTENZIONE QUESTO QUI NON VIENE MAI ESEGUITO
+			/////// C'è UN IF 0!!!!!!!!
+			/////// TODO
+
+                    if (0 && predicted_time_to_crash < (float)TTC_THRESHOLD) {
                         
                         //pthread_mutex_lock(&manage_vm_mutex);
                         pthread_mutex_lock(&mutex);
