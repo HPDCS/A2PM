@@ -17,7 +17,6 @@
 #define NUMBER_GROUPS			3				//It must be equal to the value in server side in controller
 #define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
-#define ARRIVAL_RATE_INTERVAL	10			//Interval in seconds
 
 int current_vms[NUMBER_GROUPS];				//Number of connected VMs
 int allocated_vms[NUMBER_GROUPS];			//Number of possible VMs
@@ -271,16 +270,32 @@ void build_select_list() {
 void *arrival_rate_thread(void * sock){
 	int sockfd;
 	sockfd = (int)(long)sock;
+	int connection;
+	struct sockaddr_in controller;
+	unsigned int addr_len;
+	addr_len = sizeof(struct sockaddr_in);
+	
+	
+	connection = accept(sockfd, (struct sockaddr *)&controller, &addr_len);
+	if (connection < 0) {
+		perror("accept");
+	    exit(EXIT_FAILURE);
+    } 
+
+	printf("accepted connection on sockfd_arrival_rate %d from controller %s\n", connection, inet_ntoa(controller.sin_addr));
+	
 	while(1){
-		if(timer_value_seconds(arrival_rate_timer) > ARRIVAL_RATE_INTERVAL){
-			arrival_rate = (float)lambda/(int)ARRIVAL_RATE_INTERVAL;
-			if(sock_write(sockfd,&arrival_rate,sizeof(float)) < 0)
-				perror("Error in writing arrival rate to controller: ");
-			timer_restart(arrival_rate_timer);
-			printf("LAMBDA IS: %d and INTERVAL IS: %d\n", lambda, (int)ARRIVAL_RATE_INTERVAL);
-			printf("Sent arrival rate is %.3f. Timer restarted!\n", arrival_rate);
-			lambda = 0;
+		if(sock_read(connection, &arrival_rate, sizeof(float)) < 0){
+			perror("Error in reading in arrival rate thread: ");
 		}
+		int interval = timer_value_seconds(arrival_rate_timer);
+		arrival_rate = (float)lambda/interval;
+		if(sock_write(connection,&arrival_rate,sizeof(float)) < 0)
+			perror("Error in writing arrival rate to controller: ");
+		timer_restart(arrival_rate_timer);
+		printf("LAMBDA IS: %d and INTERVAL IS: %d\n", lambda, interval);
+		printf("Sent arrival rate is %.3f. Timer restarted!\n", arrival_rate);
+		lambda = 0;
 	}
 }
 
@@ -581,6 +596,7 @@ int main (int argc, char *argv[]) {
 	pthread_create(&tid,&pthread_custom_attr,controller_thread,(void *)(long)sockfd_controller);
 	
 	/* CONNECTION LB - CONTROLLER ARRIVAL RATE */
+	struct sockaddr_in balancer;
 	printf("Creating socket to controller arrival rate...\n");
 	sockfd_controller_arrival_rate = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd_controller_arrival_rate < 0) {
@@ -588,17 +604,19 @@ int main (int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	// Controller's info
-	controller.sin_family = AF_INET;
-	controller.sin_addr.s_addr = inet_addr(argv[2]);
-	controller.sin_port = htons(port_arrival_rate);
+	balancer.sin_family = AF_INET;
+	balancer.sin_addr.s_addr = htonl(INADDR_ANY);
+	balancer.sin_port = htons(port_arrival_rate);
 	
-	// Connect to controller (it creates the connection LB - Controller)
-	if (connect(sockfd_controller_arrival_rate, (struct sockaddr *)&controller , sizeof(controller)) < 0) {
-        perror("main: connect_to_controller");
-        exit(EXIT_FAILURE);
-    }
-    printf("Correctely connected to controller arrival_rate %s on port %d\n", inet_ntoa(controller.sin_addr), port_arrival_rate);
-
+	if (bind(sockfd_controller_arrival_rate, (struct sockaddr *) &balancer,sizeof(balancer)) < 0 ) {
+		perror("bind");
+		close(sockfd_controller_arrival_rate);
+		exit(EXIT_FAILURE);
+	}
+	if(listen(sockfd_controller_arrival_rate, MAX_NUM_OF_CLIENTS) < 0){
+		perror("listen: ");
+	}
+	printf("Listening on port %d\n", port_arrival_rate);
 	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
 	pthread_attr_init(&pthread_custom_attr);
 	timer_start(arrival_rate_timer);

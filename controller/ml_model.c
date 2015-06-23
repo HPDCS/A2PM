@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 
-#define ALPHA 0.1
+#define ALPHA 0.8
 
 
 // This computes the prediction model for linear regression
@@ -64,11 +64,11 @@ float get_predicted_mttf(int ml_model, system_features last_features, system_fea
         f.cpu_idle=init_features.cpu_idle;
 
 	if(f.mem_used_slope > 0.0) {
-		if(mem_used_slope == 0.0) {
-			mem_used_slope = f.mem_used_slope;
-		} else {
+//		if(mem_used_slope == 0.0) {
+//			mem_used_slope = f.mem_used_slope;
+//		} else {
 			mem_used_slope = ALPHA * mem_used_slope + (1 - ALPHA) * f.mem_used_slope;
-		}
+//		}
 	}
 
     //return calculate_linear_regression(f);
@@ -107,11 +107,11 @@ float get_predicted_rttc(int ml_model, system_features last_features, system_fea
         f.cpu_idle=last_features.cpu_idle;
 
 	if(f.mem_used_slope > 0.0) {
-                if(mem_used_slope == 0.0) {
-                        mem_used_slope = f.mem_used_slope;
-                } else {
+  //              if(mem_used_slope == 0.0) {
+    //                    mem_used_slope = f.mem_used_slope;
+      //          } else {
                         mem_used_slope = ALPHA * mem_used_slope + (1 - ALPHA) * f.mem_used_slope;
-                }
+        //        }
         }
 
 	float predicted=(float)((float)f.mem_free/mem_used_slope)*f.gen_time;
