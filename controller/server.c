@@ -14,7 +14,6 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 
-
 #define COMMUNICATION_TIMEOUT   60
 #define NUMBER_GROUPS           3       // one group for each type of service
 #define NUMBER_VMs              1024       // number of possible VMs initially for each group
@@ -40,6 +39,7 @@ pthread_mutex_t mttf_mutex;
 float * rej_rate;
 int index_rej_rate = 0;
 int sockfd_balancer;	//socket number for Load Balancer (LB)
+int sockfd_balancer_arrival_rate;
 
 /*** TODO: initialize with real provided services ***/
 enum operations{
@@ -234,6 +234,15 @@ void * mttf_thread(void * args){
 	}
 }
 
+void * arrival_rate_thread(void * v){
+	float arrival_rate = 0;
+	while(1){
+		if(sock_read(sockfd_balancer_arrival_rate,&arrival_rate,sizeof(float)) < 0)
+			perror("Error in reading in arrival_rate_thread: ");
+		printf("############# ARRIVAL RATE IS: %.3f per sec\n", arrival_rate);
+	}
+}
+
 /* THREAD FUNCTION
  * The duties of this thread are ONLY to listen for messages
  * from a connected VM. If something goes wrong this thread
@@ -241,6 +250,7 @@ void * mttf_thread(void * args){
  * requests queue.
  */
 void * communication_thread(void * v){
+    
 
 	vm_data ** pointer_to_vm_pointer = (vm_data **)v;
     vm_data * vm = (vm_data *)*pointer_to_vm_pointer;
@@ -489,7 +499,6 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
 			send_command_to_load_balancer();
 			
 		}
-
         // make a new thread for each VMs
         printf("New VM with IP address %s added in group %d in position %d sockid %d - %d\n", new_vm->ip_address, s.service, current_position, socket, new_vm->socket);
         pthread_attr_init(&pthread_custom_attr);
@@ -505,7 +514,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
  * it must to return -1 if something wrong
  * or it must to return 0 if communication with balancer is established
  */
-int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr){
+int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr, int * sock_balancer){
 	unsigned int addr_len;
     int socket;
     int numbytes;
@@ -529,7 +538,7 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr){
         printf("Setsockopt failed for socket id %i\n", socket);
     if (setsockopt (socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&communication_timeout, sizeof(communication_timeout)) < 0)
         printf("Setsockopt failed for socket id %i\n", socket);
-    sockfd_balancer = socket;
+    *sock_balancer = socket;
     // make a new thread for each VMs
 	printf("Communication with load_balancer %s established\n", inet_ntoa(balancer.sin_addr));
 }
@@ -590,19 +599,21 @@ int main(int argc,char ** argv){
     int sockfd;				//socket number for Computing Nodes (CN)
     int port;				//port number for CN
     int port_balancer;		//port number for LB
+    int port_balancer_arrival_rate;
     int index;
     
     int sock_dgram;
     
     pthread_attr_t pthread_custom_attr;
     pthread_t tid;
+    pthread_t tid_balancer_arrival_rate;
     
     communication_timeout.tv_sec = COMMUNICATION_TIMEOUT;
     communication_timeout.tv_usec = 0;
     
-    if (argc != 4) {
+    if (argc != 5) {
         /*** TODO: added argv[0] to avoid warning caused by %s ***/
-        printf("Usage: %s vm_port_number load_balancer_port_number ml_model_number\n", argv[0]);
+        printf("Usage: %s vm_port_number load_balancer_port_number LB_arrival_rate_port_number ml_model_number\n", argv[0]);
         exit(1);
     }
     else if (atoi(argv[1]) == atoi(argv[2])) {
@@ -612,7 +623,8 @@ int main(int argc,char ** argv){
     
     port = atoi(argv[1]);
     port_balancer = atoi(argv[2]);
-    ml_model = atoi(argv[3]);
+    port_balancer_arrival_rate = atoi(argv[3]);
+    ml_model = atoi(argv[4]);
     
     //Allocating initial memory for the VMs
     /*** ATTENZIONE : Problema con l'allocazione della malloc, mi permette di scrivere in altre zone di memoria di almeno 4B ***/
@@ -632,13 +644,17 @@ int main(int argc,char ** argv){
     //Open the connection with the load_balancer
     start_server(&sockfd_balancer,port_balancer);
     printf("Server for load balancer started, listening on socket %d on port %d\n", sockfd_balancer, port_balancer);
+    start_server(&sockfd_balancer_arrival_rate,port_balancer_arrival_rate);
     
     //Start dedicated thread to communicate with LB
     //It must block until the system is not ready
-    if((accept_load_balancer(sockfd_balancer,pthread_custom_attr)) < 0)
+    if((accept_load_balancer(sockfd_balancer,pthread_custom_attr,&sockfd_balancer)) < 0)
 		exit(1);
-    
+    if((accept_load_balancer(sockfd_balancer_arrival_rate,pthread_custom_attr,&sockfd_balancer_arrival_rate)) < 0)
+		exit(1);
+
     pthread_attr_init(&pthread_custom_attr);
+    pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,arrival_rate_thread,NULL);
     pthread_create(&tid,&pthread_custom_attr,mttf_thread,NULL);
     
 	//start_server_dgram(&sock_dgram);
