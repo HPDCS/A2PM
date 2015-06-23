@@ -13,6 +13,7 @@
 #include "system_features.h"
 #include <ifaddrs.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 #define COMMUNICATION_TIMEOUT   60
 #define NUMBER_GROUPS           3       // one group for each type of service
@@ -244,19 +245,29 @@ void compute_region_mttf(){
 	
 	int index;
 	int index_2;
+
+	struct timeval the_timer;
+	FILE *f;
 	
-	for(index = 0; index < NUMBER_GROUPS; index++){
-		for(index_2 = 0; index_2 < allocated_vms[index]; index_2++){
-			if(vm_data_set[index][index_2] != NULL && vm_data_set[index][index_2]->service_info.service == ACTIVE
-			 && vm_data_set[index][index_2]->mttf > 0){
+	for(index = 0; index < NUMBER_GROUPS; index++) {
+		for(index_2 = 0; index_2 < allocated_vms[index]; index_2++) {
+			if(vm_data_set[index][index_2] != NULL && vm_data_set[index][index_2]->service_info.state == ACTIVE && vm_data_set[index][index_2]->mttf > 0) {
 				mttfs = mttfs + vm_data_set[index][index_2]->mttf;
 				number_active_vms++;
 			}
 		}
 	}
-	//printf("##################### Total mttf is %f on %d active vms\n", mttfs, number_active_vms);
+	printf("##################### Total mttf is %f on %d active vms\n", mttfs, number_active_vms);
 	region_mttf = mttfs/number_active_vms;
 	printf("The region mttf value is %f\n", region_mttf);
+
+	gettimeofday(&the_timer, 0);
+
+	f = fopen("mttf_region", "a");
+	fprintf(f, "%d\t%f\n", the_timer.tv_sec, region_mttf);
+	printf("-----------------------------------> %d\t%f\n", the_timer.tv_sec, region_mttf);
+	fclose(f);
+	
 }
 
 void * arrival_rate_thread(void * bal){
