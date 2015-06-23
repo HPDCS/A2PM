@@ -15,8 +15,8 @@
 #define RESET "\033[0m"
 
 
-#define MIN_LEAK 1024*1024		// in bytes
-#define MAX_LEAK 1024*1024*1024	// in bytes
+#define MIN_LEAK 1024		// in bytes
+#define MAX_LEAK 1024*1024	// in bytes
 
 #define MIN_MEAN 500	// in usec (0.5 seconds)
 #define MAX_MEAN 1000000	// in usec (2 seconds)
@@ -94,6 +94,8 @@ rewait:
 		usleep(waiting_time);
 		printf(KRED "LEAK" RESET ": Leaking %.02f KB and sleeping %.02f seconds\n", (double)leak/1024, waiting_time/1000000);
 		void *ptr = malloc(leak);
+		if(ptr == NULL)
+			continue;
 		memset(ptr, 'a', leak); // To avoid zero pages to eat away the leak
 		#endif
 	}

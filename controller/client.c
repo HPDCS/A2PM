@@ -291,7 +291,7 @@ int main(int argc,char ** argv){
             exit(0);
         }
 
-	sleep(10);
+	sleep(5);
         
     }
     
