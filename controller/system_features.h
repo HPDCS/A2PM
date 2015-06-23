@@ -33,11 +33,13 @@ typedef struct _system_features_with_slopes {
 	float n_th_slope;
 	float mem_used_slope;
 	float mem_free_slope;
+	float mem_buffers_slope;
 	float swap_used_slope;
 	float swap_free_slope;
 	float cpu_user_slope;
 	float cpu_system_slope;
 	float cpu_idle_slope;
+	float cpu_steal_slope;
 	int n_th;
 	int mem_total;
 	int mem_used;

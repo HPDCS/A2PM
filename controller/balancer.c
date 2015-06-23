@@ -1,5 +1,3 @@
-﻿// TODO IMPORTANTE: le recv e send NON sono a prova di segnale ancora! Cambiare sta cosa appena possibile!!!
-
 #include "sockhelp.h"
 #include <ctype.h>
 #include <sys/time.h>
@@ -14,9 +12,9 @@
 
 #define MAX_NUM_OF_CLIENTS		1024			//Max number of accepted clients
 #define FORWARD_BUFFER_SIZE		1024*1024		//Size of buffers
-#define NUMBER_VMs				5				//It must be equal to the value in server side in controller
+#define NUMBER_VMs				1024				//It must be equal to the value in server side in controller
 #define NUMBER_GROUPS			3				//It must be equal to the value in server side in controller
-#define MAX_CONNECTED_CLIENTS	5				//It represents the max number of connected clients
+#define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
 
 int current_vms[NUMBER_GROUPS];				//Number of connected VMs
@@ -58,8 +56,8 @@ struct vm_data * vm_data_set[NUMBER_GROUPS];
 int sock; // Listening socket
 __thread void *buffer_from_client;
 __thread void *buffer_to_client;
-__thread void *aux_buffer_from_client; //LUCA:
-__thread void *aux_buffer_to_client; //LUCA:
+__thread void *aux_buffer_from_client;
+__thread void *aux_buffer_to_client;
 __thread int connectlist[2];  // One thread handles only 2 sockets
 __thread fd_set socks; // Socket file descriptors we want to wake up for, using select()
 __thread int highsock; //* Highest #'d file descriptor, needed for select()
@@ -80,18 +78,33 @@ void check_vm_data_set_size(int service){
 /*
  * delete a vm
  */
-// TODO: per ora suppongo che ogni vm abbia un suo ip
-// TODO: c'è bisogno di un mutex???? (forse no, perchè thread unico?)
+
 void delete_vm(char * ip_address, int service, int port){
 	char ip[16];
 	strcpy(ip, ip_address);
 	int index;
+	
+	pthread_mutex_lock(&mutex);
 	for(index = 0; index < current_vms[service]; index++){
 		if(strcmp(vm_data_set[service][index].ip_address,ip) == 0 && vm_data_set[service][index].port == port){
+			if(current_vms[service] == 1){
+				printf("No more TPCW instances are available\n");
+				current_vms[service] = 0;
+				break;
+			}
+			if(index == current_vms[service] -1){
+				printf("The last active TPCW instance is %s\n", vm_data_set[service][index - 1].ip_address);
+				current_vms[service]--;
+				break;
+			}
+			printf("Deleted TPCW with ip %s and port %d\n", ip, port);
+			printf("Deleting ip %s - Last ip %s\n", vm_data_set[service][index].ip_address, vm_data_set[service][current_vms[service]-1].ip_address);
 			vm_data_set[service][index] = vm_data_set[service][--current_vms[service]];
+			printf("Connected TPCW has ip %s and port %d\n", vm_data_set[service][index].ip_address, vm_data_set[service][index].port);
 			break;
 		}
 	}
+	pthread_mutex_unlock(&mutex);
 }
 
 // Append to the original buffer the content of aux_buffer
@@ -110,6 +123,8 @@ void append_buffer(char * original_buffer, char * aux_buffer, int * bytes_origin
 	bzero(aux_buffer, FORWARD_BUFFER_SIZE);
 }
 
+// Look for an IP address in the internal representation
+
 int search_ip(struct vm_data * tpcw_instance, char * ip){
 	int index;
 	for(index = 0; index < MAX_CONNECTED_CLIENTS; index++){
@@ -120,12 +135,15 @@ int search_ip(struct vm_data * tpcw_instance, char * ip){
 	return 0;
 }
 
+
+// Check whether a remote host has already connected to me
 struct sockaddr_in check_already_connected(char * ip){
 	
 	struct sockaddr_in client;
 	client.sin_family = AF_INET;
 	
-	// TODO: remove comments when all services will be available
+	// TODO: this code is commented only for debug purposes, do not remove
+
 	/*int index;
 	int service;
 	for(service = 0; service < NUMBER_GROUPS; service){
@@ -164,9 +182,11 @@ struct sockaddr_in check_already_connected(char * ip){
 	return client;
 }
 
+// Get the current open socket to a give client's IP
 int get_current_socket(char * ip_client) {
 	
-	// TODO: remove comments to try with all the services
+	// TODO: this code is commented only for debug purposes, do not remove
+
 	/*int index;
 	for(index = 0; index < NUMBER_GROUPS; index++){
 		if(actual_index[index] == current_vms[index])
@@ -190,17 +210,15 @@ int get_current_socket(char * ip_client) {
 		perror("get_current_socket: connect_to_controller");
 		exit(EXIT_FAILURE);
 	}
+	printf("TPCW IP ADDRESS %s\n", inet_ntoa(temp.sin_addr));
 	printf("\n\n\n*** CONNECTION ESTABLISHED WITH TPCW - SOCKET %d ***\n\n\n", da_socket);
 	setnonblocking(da_socket); 
 	
 	return da_socket;
 
 }
-/**/
-/* UP TO HERE */
 
-
-
+// Make an already-created socket non-blocking
 void setnonblocking(int sock) {
 	int opts;
 
@@ -217,6 +235,8 @@ void setnonblocking(int sock) {
 	return;
 }
 
+
+// This creates a selection list for select()
 void build_select_list() {
 	int listnum; //Current item in connectlist for for loops
 
@@ -243,6 +263,7 @@ void build_select_list() {
 	}
 }
 
+// Manage the actual forwarding of data
 void *deal_with_data(void *sockptr) {
 
 	struct arg_thread arg = *(struct arg_thread *)sockptr;
@@ -281,11 +302,12 @@ void *deal_with_data(void *sockptr) {
 	connectlist[0] = client_socket;	
 	connectlist[1] = vm_socket;
 
+	// We never finish forwarding data!
 	while (1) {
 		
                 build_select_list();
 
-                // This can be even set to infinite... we have to decide
+				// Setup a timeout
                 timeout.tv_sec = 1;
                 timeout.tv_usec = 0;
 
@@ -305,8 +327,8 @@ void *deal_with_data(void *sockptr) {
 
 				// First of all, check if we have something for the client
 				if(bytes_ready_to_client > 0) {
-					printf("Writing to client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_to_client);
-
+					//printf("Writing to client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_to_client);
+					printf("Writing to client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
 					if((transferred_bytes = sock_write(client_socket, buffer_to_client, bytes_ready_to_client)) < 0) {
 						perror("write: sending to client from buffer");
 					}
@@ -337,7 +359,8 @@ void *deal_with_data(void *sockptr) {
 				}
 				
 				if(bytes_ready_from_client > 0) {
-					printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
+					//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
+					printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
 				}
 				
 			}
@@ -347,8 +370,9 @@ void *deal_with_data(void *sockptr) {
 				// First of all, check if we have something for the VM to send
 				if(bytes_ready_from_client > 0) {
 
-					printf("Writing to VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_from_client);
-
+					//printf("Writing to VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_from_client);
+					printf("Writing to VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
+					
                     if((transferred_bytes = sock_write(vm_socket, buffer_from_client, bytes_ready_from_client)) < 0) {
 						perror("write: sending to vm from client");
                     }
@@ -356,7 +380,7 @@ void *deal_with_data(void *sockptr) {
                     bytes_ready_from_client = 0;
 					bzero(buffer_from_client, FORWARD_BUFFER_SIZE);
                 }
-				/*** PARTE MIA ***/
+
 	            // Always perform sock_read, if it returns a number greater than zero
 	            // something has been read then we've to append aux buffer to previous buffer (pointers)
 	            transferred_bytes = sock_read(vm_socket, aux_buffer_to_client, FORWARD_BUFFER_SIZE);
@@ -379,7 +403,8 @@ void *deal_with_data(void *sockptr) {
 				}
 				
 				if(bytes_ready_to_client > 0) {
-					printf("Read from VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_to_client);
+					//printf("Read from VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_to_client);
+					printf("Read from VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
 				}
 
 			}
@@ -499,8 +524,8 @@ int main (int argc, char *argv[]) {
 	// Service_name: used to collect all the info about the forwarder net infos
 	// ip_controller: ip used to contact the controller
 	// port_controller: port number used to contact the controller
-	if (argc != 4) {
-		printf("Usage: %s Service_name ip_controller port_controller\n",argv[0]);
+	if (argc != 5) {
+		printf("Usage: %s Service_name ip_controller port_controller port_tpcw\n",argv[0]);
 		exit(EXIT_FAILURE);
 	}
 	
@@ -542,11 +567,11 @@ int main (int argc, char *argv[]) {
 
 	// Get the address information, and bind it to the socket
 	ascport = argv[1]; //argv[1] has to be a service name (not a port)
-	port = atoport(ascport, NULL); //sockethelp.c
+	port = atoi(argv[4]); //sockethelp.c
 	memset((char *) &server_address, 0, sizeof(server_address));
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-	server_address.sin_port = port;
+	server_address.sin_port = htons(port);
 	if (bind(sock, (struct sockaddr *) &server_address,
 	  sizeof(server_address)) < 0 ) {
 		perror("bind");
@@ -554,7 +579,10 @@ int main (int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	listen(sock, MAX_NUM_OF_CLIENTS);
+	if(listen(sock, MAX_NUM_OF_CLIENTS) < 0){
+		perror("listen: ");
+	}
+	printf("Listening on port %d\n", port);
 	
 	// Accepting clients
 	while(1) {
@@ -570,7 +598,7 @@ int main (int argc, char *argv[]) {
         	
 		setnonblocking(connection);
 
-		//printf("accepted from %d\n", connection);
+		printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
 
 		struct arg_thread vm_client;
 		
@@ -579,7 +607,7 @@ int main (int argc, char *argv[]) {
 		strcpy(vm_client.ip_address,inet_ntoa(client.sin_addr));
 		vm_client.port = ntohs(client.sin_port);
 		
-		printf("ARRIVATO NUOVO CLIENT CON IP: %s e PORT: %d\n", vm_client.ip_address, vm_client.port);
+		printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
 		res_thread = create_thread(deal_with_data, &vm_client);
 		if(res_thread != 0){
 			pthread_mutex_unlock(&mutex);

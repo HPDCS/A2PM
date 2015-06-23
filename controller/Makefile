@@ -1,9 +1,9 @@
 CFLAGS=-g
 
 all:
-	$(CC) client.c $(CFLAGS) -o controller_client
-	$(CC) server.c ml_model.c leader.c broadcast.c thread.c atomic.c sockhelp.c $(CFLAGS) -o controller_server -lpthread
-	$(CC) balancer.c sockhelp.c thread.c atomic.c $(CFLAGS) -pthread -o balancer
+	gcc -g -pthread server.c ml_model.c sockhelp.c -o controller
+	gcc -g -pthread balancer.c atomic.c sockhelp.c thread.c -o balancer
+	gcc -g client.c -o client
 
 clean:
-	-rm controller_client controller_server balancer
+	-rm controller client balancer

@@ -14,17 +14,18 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 
-
 #define COMMUNICATION_TIMEOUT   60
 #define NUMBER_GROUPS           3       // one group for each type of service
-#define NUMBER_VMs              5       // number of possible VMs initially for each group
+#define NUMBER_VMs              1024       // number of possible VMs initially for each group
 #define CONN_BACKLOG            1024    // max number of pending connections
 #define BUFSIZE                 4096    // buffer size (in bytes)
 #define TTC_THRESHOLD           300     // threshold to rejuvenate the VM (in sec)
 
 #define MTTF_SLEEP				10		// avg rej rate period
-#define PATH 					"/home/luca/Scrivania/controllers_list.txt"
+#define PATH 					"/home/ubuntu/framework/controller/controllers_list.txt"
 #define GLOBAL_CONTROLLER_PORT	4567
+
+void send_command_to_load_balancer();
 
 int ml_model;                           // used machine-learning model
 struct timeval communication_timeout;
@@ -38,6 +39,7 @@ pthread_mutex_t mttf_mutex;
 float * rej_rate;
 int index_rej_rate = 0;
 int sockfd_balancer;	//socket number for Load Balancer (LB)
+int sockfd_balancer_arrival_rate;
 
 /*** TODO: initialize with real provided services ***/
 enum operations{
@@ -57,20 +59,20 @@ enum vm_state {
 // service info for each CN
 struct vm_service{
     enum services service;
-    enum vm_state state;
+    volatile enum vm_state state;
     int provided_port;
 };
 
-struct vm_data {
+typedef struct _vm_data {
     int socket;
     char ip_address[16];
     int port;
-    struct vm_service service_info;
+    volatile struct vm_service service_info;
     system_features last_features;
     int last_system_features_stored;
-};
+}vm_data;
 
-struct vm_data * vm_data_set[NUMBER_GROUPS]; //Groups of VMs
+vm_data ** vm_data_set[NUMBER_GROUPS]; //Groups of VMs
 
 struct virtual_machine{
 	char ip[16];
@@ -82,12 +84,12 @@ struct virtual_machine{
 struct virtual_machine virt_machine;
 
 /* Fill current_features */
-void get_feature(char *features, system_features current_features) {
+void get_feature(char *features, system_features *current_features) {
     sscanf(features, "Datapoint: %f %d\nMemory: %d %d %d %d %d %d\nSwap: %d %d %d\nCPU: %f %f %f %f %f %f",
-           &current_features.time, &current_features.n_th,
-           &current_features.mem_total,&current_features.mem_used,&current_features.mem_free,&current_features.mem_shared,&current_features.mem_buffers,&current_features.mem_cached,
-           &current_features.swap_total,&current_features.swap_used,&current_features.swap_free,
-           &current_features.cpu_user,&current_features.cpu_nice,&current_features.cpu_system,&current_features.cpu_iowait,&current_features.cpu_steal,&current_features.cpu_idle);
+           &current_features->time, &current_features->n_th,
+           &current_features->mem_total,&current_features->mem_used,&current_features->mem_free,&current_features->mem_shared,&current_features->mem_buffers,&current_features->mem_cached,
+           &current_features->swap_total,&current_features->swap_used,&current_features->swap_free,
+           &current_features->cpu_user,&current_features->cpu_nice,&current_features->cpu_system,&current_features->cpu_iowait,&current_features->cpu_steal,&current_features->cpu_idle);
 }
 
 void store_last_system_features(system_features *last_features, system_features current_features) {
@@ -97,15 +99,39 @@ void store_last_system_features(system_features *last_features, system_features 
 /* This function compacts groups in vm_data_set 
  * when there are closed connections
  */
-void compact_vm_data_set(struct vm_data vm){
+/*
+void compact_vm_data_set(vm_data vm){
     int index;
     int group;
     group = vm.service_info.service;
     for (index = 0; index < current_vms[group]; index++) {
-        if (strcmp(vm_data_set[group][index].ip_address, vm.ip_address) == 0) {
+        if (strcmp(vm_data_set[group][index]->ip_address, vm.ip_address) == 0) {
             vm_data_set[group][index] = vm_data_set[group][--current_vms[group]];
             break;
         }
+    }
+}*/
+
+void switch_crashed_machine(vm_data vm) {
+    int index;
+    char send_buff[BUFSIZE];
+    
+    for (index = 0; index < allocated_vms[vm.service_info.service]; index++) {
+		if (vm_data_set[vm.service_info.service][index] != NULL){
+			if (vm_data_set[vm.service_info.service][index]->service_info.state == STAND_BY) {
+				vm_data_set[vm.service_info.service][index]->service_info.state = ACTIVE;
+				//printf("SWITCH POINTER %i VM with ip address %s and sock number %d activated\n", vm_data_set[vm.service_info.service][index], vm_data_set[vm.service_info.service][index].ip_address, vm_data_set[vm.service_info.service][index].socket);
+				printf("SWITCH POINTER %p\n", &(vm_data_set[vm.service_info.service][index]->service_info.state));
+				printf("VM of group %d in position %d activated\n", vm.service_info.service, index);
+				strcpy(virt_machine.ip,vm_data_set[vm.service_info.service][index]->ip_address);
+				virt_machine.port = htons(8080); //TODO
+				virt_machine.service = vm.service_info.service;
+				virt_machine.op = ADD;
+				send_command_to_load_balancer();
+            
+				break;
+			}
+		}
     }
 }
 
@@ -113,15 +139,24 @@ void compact_vm_data_set(struct vm_data vm){
  * attempts to active it to replace a VM 
  * in rejuvenation state
  */
-void switch_active_machine(struct vm_data vm) {
+void switch_active_machine(vm_data vm) {
     int index;
     char send_buff[BUFSIZE];
     
     //pthread_mutex_lock(&mutex);
     vm.service_info.state = REJUVENATING;
     for (index = 0; index < current_vms[vm.service_info.service]; index++) {
-        if (vm_data_set[vm.service_info.service][index].service_info.state == STAND_BY) {
-            vm_data_set[vm.service_info.service][index].service_info.state = ACTIVE;
+        if (vm_data_set[vm.service_info.service][index]->service_info.state == STAND_BY) {
+            vm_data_set[vm.service_info.service][index]->service_info.state = ACTIVE;
+			//printf("SWITCH POINTER %i VM with ip address %s and sock number %d activated\n", vm_data_set[vm.service_info.service][index], vm_data_set[vm.service_info.service][index].ip_address, vm_data_set[vm.service_info.service][index].socket);
+            printf("SWITCH POINTER %p\n", &(vm_data_set[vm.service_info.service][index]->service_info.state));
+            printf("VM of group %d in position %d activated\n", vm.service_info.service, index);
+            strcpy(virt_machine.ip,vm_data_set[vm.service_info.service][index]->ip_address);
+            virt_machine.port = htons(8080); //TODO
+            virt_machine.service = vm.service_info.service;
+            virt_machine.op = ADD;
+            send_command_to_load_balancer();
+            
             break;
         }
     }
@@ -134,7 +169,7 @@ void switch_active_machine(struct vm_data vm) {
     if ((send(vm.socket, send_buff, BUFSIZE, 0)) == -1) {
         perror("switch_active_machine - send");
         printf("Closing connection with VM %s\n", vm.ip_address);
-        compact_vm_data_set(vm);
+        //compact_vm_data_set(vm);
         close(vm.socket);
     } else{
         printf("REJUVENATE command sent to machine with IP address %s\n", vm.ip_address);
@@ -199,6 +234,15 @@ void * mttf_thread(void * args){
 	}
 }
 
+void * arrival_rate_thread(void * v){
+	float arrival_rate = 0;
+	while(1){
+		if(sock_read(sockfd_balancer_arrival_rate,&arrival_rate,sizeof(float)) < 0)
+			perror("Error in reading in arrival_rate_thread: ");
+		printf("############# ARRIVAL RATE IS: %.3f per sec\n", arrival_rate);
+	}
+}
+
 /* THREAD FUNCTION
  * The duties of this thread are ONLY to listen for messages
  * from a connected VM. If something goes wrong this thread
@@ -206,9 +250,15 @@ void * mttf_thread(void * args){
  * requests queue.
  */
 void * communication_thread(void * v){
-    struct vm_data vm;
-    vm = *(struct vm_data *)v;   // this is exactly the struct stored in the system matrix
     
+
+	vm_data ** pointer_to_vm_pointer = (vm_data **)v;
+    vm_data * vm = (vm_data *)*pointer_to_vm_pointer;
+    //vm = (vm_data *)(*v);   // this is exactly the struct stored in the system matrix
+
+    //vm_data * vm = (vm_data *)malloc(sizeof(vm_data));
+    //memcpy(vm,v,sizeof(vm_data));
+
     int numbytes;
     system_features current_features;
     system_features init_features;
@@ -217,26 +267,34 @@ void * communication_thread(void * v){
     char send_buff[BUFSIZE];
 
     while (1){
-        if (vm.service_info.state == ACTIVE) {
-            printf("Waiting for features from the CN %s for the service: %d\n", vm.ip_address, vm.service_info.service);
+		printf("Communication_thread socket for VM %s is: %d\n", vm->ip_address, vm->socket);
+        if (vm->service_info.state != ACTIVE){
+				//printf("STANDBY VM POINTER %i Sock number of Standby VM %d and ip address %s\n", &vm, vm.socket, vm.ip_address);
+				printf("STANDBY POINTER %p\n", &(vm->service_info.state));
+				fflush(stdout);
+			}else {
+            printf("Waiting for features from the CN %s for the service: %d\n", vm->ip_address, vm->service_info.service);
+            fflush(stdout);
             bzero(recv_buff,BUFSIZE);
             // check recv features
-            if ((numbytes = recv(vm.socket,recv_buff,BUFSIZE,0)) == -1) {
-                printf("Failed receiving data from the VM %s for the service: %d\n", vm.ip_address, vm.service_info.service);
+            //if ((numbytes = recv(vm->socket,recv_buff,BUFSIZE,0)) == -1) {
+			if ((numbytes = sock_read(vm->socket,recv_buff,BUFSIZE)) == -1) {
+                printf("Failed receiving data from the VM %s for the service with sockid %d: %d\n", vm->ip_address, vm->socket, vm->service_info.service);
+                perror("recv: ");
                 if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                    printf("Timeout on recv() while waiting data from VM %s\n", vm.ip_address);
+                    printf("Timeout on recv() while waiting data from VM %s\n", vm->ip_address);
                 }
                 break;
             } else  if (numbytes == 0) {
-                printf("VM %s is disconnected\n", vm.ip_address);
+                printf("VM %s is disconnected\n", vm->ip_address);
                 break;
             } else{
                 // features correctly received
-                printf("Received data (%d bytes) from VM %s for the service %d\n", numbytes, vm.ip_address, vm.service_info.service);
+                printf("Received data (%d bytes) from VM %s for the service %d\n", numbytes, vm->ip_address, vm->service_info.service);
                 printf("%s\n", recv_buff);
                 
                 fflush(stdout);
-                get_feature(recv_buff, current_features);
+                get_feature(recv_buff, &current_features);
                 
                 // fill init_features only the first time
                 if(!flag_init_features){
@@ -245,24 +303,31 @@ void * communication_thread(void * v){
 				}
 				
                 // at least 2 sets of features needed
-                if (vm.last_system_features_stored) {
-					//float mean_time_to_fail = get_predicted_mttf(ml_model, vm.last_features, current_features, init_features);
-					float mean_time_to_fail = 1000;
+                if (vm->last_system_features_stored) {
+					float mean_time_to_fail = get_predicted_mttf(ml_model, vm->last_features, current_features, init_features);
 					pthread_mutex_lock(&mttf_mutex);
 					rej_rate[index_rej_rate++] = (1/mean_time_to_fail);
 					pthread_mutex_unlock(&mttf_mutex);
-                    float predicted_time_to_crash = get_predicted_rttc(ml_model, vm.last_features, current_features);
-                    printf("Predicted time to crash for VM %s for the service %d is: %f\n", vm.ip_address, vm.service_info.service, predicted_time_to_crash);
-                    if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
+					printf("predicted MTTF: %f\n", mean_time_to_fail);
+                    float predicted_time_to_crash = get_predicted_rttc(ml_model, vm->last_features, current_features);
+                    //float predicted_time_to_crash = 1000;
+                    printf("Predicted time to crash for VM %s for the service %d is: %f\n", vm->ip_address, vm->service_info.service, predicted_time_to_crash);
+
+
+			/////// ATTENZIONE QUESTO QUI NON VIENE MAI ESEGUITO
+			/////// C'è UN IF 0!!!!!!!!
+			/////// TODO
+
+                    if (0 && predicted_time_to_crash < (float)TTC_THRESHOLD) {
                         
                         //pthread_mutex_lock(&manage_vm_mutex);
                         pthread_mutex_lock(&mutex);
                         
-                        switch_active_machine(vm);
+                        switch_active_machine(*vm);
                         
-                        strcpy(virt_machine.ip,vm.ip_address);
+                        strcpy(virt_machine.ip,vm->ip_address);
                         virt_machine.port = htons(8080); //TODO
-                        virt_machine.service = vm.service_info.service;
+                        virt_machine.service = vm->service_info.service;
                         virt_machine.op = REJ;
                         send_command_to_load_balancer();
                         pthread_mutex_lock(&mutex);
@@ -270,37 +335,46 @@ void * communication_thread(void * v){
                         continue;
                     }
                 }
-                store_last_system_features(&(vm.last_features),current_features);
-                vm.last_system_features_stored = 1;
+                store_last_system_features(&(vm->last_features),current_features);
+                vm->last_system_features_stored = 1;
                 //sending CONTINUE command to the VM
                 bzero(send_buff, BUFSIZE);
                 send_buff[0] = CONTINUE;
-                if ((send(vm.socket, send_buff, BUFSIZE,0)) == -1) {
+                if ((send(vm->socket, send_buff, BUFSIZE,0)) == -1) {
                     if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                        printf("Timeout on send() while sending data by VM %s\n", vm.ip_address);
+                        printf("Timeout on send() while sending data by VM %s\n", vm->ip_address);
                         fflush(stdout);
                     } else {
-                        printf("Error on send() while sending data by VM %s\n", vm.ip_address);
+                        printf("Error on send() while sending data by VM %s\n", vm->ip_address);
                         fflush(stdout);
                     }
                     break;
                 }
             }
         }
+        sleep(1);
     }
-    printf("Closing connection with VM %s\n", vm.ip_address);
+    
+    printf("Closing connection with VM %s\n", vm->ip_address);
     pthread_mutex_lock(&mutex);
-    strcpy(virt_machine.ip,vm.ip_address);
+    
+    strcpy(virt_machine.ip,vm->ip_address);
     virt_machine.port = htons(8080);
-    virt_machine.service = vm.service_info.service;
+    virt_machine.service = vm->service_info.service;
     virt_machine.op = DELETE;
+    
     //state_man_vm = 1;
-    compact_vm_data_set(vm);
     send_command_to_load_balancer();
-    if(close(vm.socket) == 0){
-		printf("Connection correctely closed with VM %s\n", vm.ip_address);
+    //compact_vm_data_set(*vm);
+    
+    switch_crashed_machine(*vm);
+    
+    if(close(vm->socket) == 0){
+		printf("Connection correctely closed with VM %s\n", vm->ip_address);
 	}
 	pthread_mutex_unlock(&mutex);
+	memset(pointer_to_vm_pointer,0,sizeof(vm_data *));
+	pthread_exit(0);
 }
 
 /*
@@ -382,24 +456,37 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
         
         // increment number of connected CNs
         pthread_mutex_lock(&mutex);
+        
+        int current_position = 0;
+        while(vm_data_set[s.service][current_position] != NULL){
+			current_position++;
+			if(current_position == allocated_vms[s.service]){
+				vm_data_set[s.service] = realloc(vm_data_set[s.service],sizeof(vm_data *)*2*allocated_vms[s.service]);
+				memset(vm_data_set[s.service][current_position], 0, sizeof(vm_data *)*allocated_vms[s.service]);
+			
+				allocated_vms[s.service] *= 2;
+			}
+		}
 
         // allocate more slots if the memory is not enough
-        if (current_vms[s.service] == allocated_vms[s.service]) {
-            vm_data_set[s.service] = realloc(vm_data_set[s.service],sizeof(struct vm_data)*2*allocated_vms[s.service]);
+        /*if (current_vms[s.service] == allocated_vms[s.service]) {
+            vm_data_set[s.service] = realloc(vm_data_set[s.service],sizeof(vm_data)*2*allocated_vms[s.service]);
             
             int previously_allocated = allocated_vms[s.service];
             
             allocated_vms[s.service] *= 2;
             
             rej_rate = realloc(rej_rate,sizeof(float)*NUMBER_GROUPS*NUMBER_VMs + allocated_vms[s.service] - previously_allocated);
-        }
+        }*/
                
         // assignment phase
-        vm_data_set[s.service][current_vms[s.service]].service_info = s;
-        strcpy(vm_data_set[s.service][current_vms[s.service]].ip_address, inet_ntoa(client.sin_addr));
-        vm_data_set[s.service][current_vms[s.service]].socket = socket;
-        vm_data_set[s.service][current_vms[s.service]].port = ntohs(client.sin_port);
-        index = current_vms[s.service]++;
+        vm_data * new_vm = (vm_data *)malloc(sizeof(vm_data));
+        new_vm->service_info = s;
+        strcpy(new_vm->ip_address, inet_ntoa(client.sin_addr));
+        new_vm->socket = socket;
+        new_vm->port = ntohs(client.sin_port);
+        
+        vm_data_set[s.service][current_position] = new_vm;
                 
         if(s.state == ACTIVE){
 			
@@ -412,12 +499,11 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
 			send_command_to_load_balancer();
 			
 		}
-        
         // make a new thread for each VMs
-        printf("Host with IP address %s added in group %d\n", vm_data_set[s.service][index].ip_address, s.service);
+        printf("New VM with IP address %s added in group %d in position %d sockid %d - %d\n", new_vm->ip_address, s.service, current_position, socket, new_vm->socket);
         pthread_attr_init(&pthread_custom_attr);
-        if((pthread_create(&tid,&pthread_custom_attr,communication_thread,(void *)&vm_data_set[s.service][index])) != 0){
-			perror("accept_new_client - pthread_create");
+        if(pthread_create(&tid,&pthread_custom_attr,communication_thread,(void *)&vm_data_set[s.service][current_position]) != 0){
+			perror("Error on pthread_create while accepting new client");
 		}
 		pthread_mutex_unlock(&mutex);
     }
@@ -428,7 +514,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
  * it must to return -1 if something wrong
  * or it must to return 0 if communication with balancer is established
  */
-int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr){
+int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr, int * sock_balancer){
 	unsigned int addr_len;
     int socket;
     int numbytes;
@@ -452,7 +538,7 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr){
         printf("Setsockopt failed for socket id %i\n", socket);
     if (setsockopt (socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&communication_timeout, sizeof(communication_timeout)) < 0)
         printf("Setsockopt failed for socket id %i\n", socket);
-    sockfd_balancer = socket;
+    *sock_balancer = socket;
     // make a new thread for each VMs
 	printf("Communication with load_balancer %s established\n", inet_ntoa(balancer.sin_addr));
 }
@@ -513,19 +599,21 @@ int main(int argc,char ** argv){
     int sockfd;				//socket number for Computing Nodes (CN)
     int port;				//port number for CN
     int port_balancer;		//port number for LB
+    int port_balancer_arrival_rate;
     int index;
     
     int sock_dgram;
     
     pthread_attr_t pthread_custom_attr;
     pthread_t tid;
+    pthread_t tid_balancer_arrival_rate;
     
     communication_timeout.tv_sec = COMMUNICATION_TIMEOUT;
     communication_timeout.tv_usec = 0;
     
-    if (argc != 4) {
+    if (argc != 5) {
         /*** TODO: added argv[0] to avoid warning caused by %s ***/
-        printf("Usage: %s vm_port_number load_balancer_port_number ml_model_number\n", argv[0]);
+        printf("Usage: %s vm_port_number load_balancer_port_number LB_arrival_rate_port_number ml_model_number\n", argv[0]);
         exit(1);
     }
     else if (atoi(argv[1]) == atoi(argv[2])) {
@@ -535,14 +623,17 @@ int main(int argc,char ** argv){
     
     port = atoi(argv[1]);
     port_balancer = atoi(argv[2]);
-    ml_model = atoi(argv[3]);
+    port_balancer_arrival_rate = atoi(argv[3]);
+    ml_model = atoi(argv[4]);
     
     //Allocating initial memory for the VMs
     /*** ATTENZIONE : Problema con l'allocazione della malloc, mi permette di scrivere in altre zone di memoria di almeno 4B ***/
     for (index = 0; index < NUMBER_GROUPS; index++) {
         current_vms[index] = 0;	// actually no VMs are connected yet
-        vm_data_set[index] = malloc(sizeof(struct vm_data)*NUMBER_VMs); // allocate the same memory initially for each groups
+        vm_data_set[index] = malloc(sizeof(vm_data *)*NUMBER_VMs); // allocate the same memory initially for each groups
         allocated_vms[index] = NUMBER_VMs;  // number of slots allocated for each group
+        
+        memset(vm_data_set[index], 0, sizeof(vm_data *)*NUMBER_VMs);
         
         rej_rate = (float *)malloc(sizeof(float)*NUMBER_GROUPS*NUMBER_VMs);
     }
@@ -553,13 +644,17 @@ int main(int argc,char ** argv){
     //Open the connection with the load_balancer
     start_server(&sockfd_balancer,port_balancer);
     printf("Server for load balancer started, listening on socket %d on port %d\n", sockfd_balancer, port_balancer);
+    start_server(&sockfd_balancer_arrival_rate,port_balancer_arrival_rate);
     
     //Start dedicated thread to communicate with LB
     //It must block until the system is not ready
-    if((accept_load_balancer(sockfd_balancer,pthread_custom_attr)) < 0)
+    if((accept_load_balancer(sockfd_balancer,pthread_custom_attr,&sockfd_balancer)) < 0)
 		exit(1);
-    
+    if((accept_load_balancer(sockfd_balancer_arrival_rate,pthread_custom_attr,&sockfd_balancer_arrival_rate)) < 0)
+		exit(1);
+
     pthread_attr_init(&pthread_custom_attr);
+    pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,arrival_rate_thread,NULL);
     pthread_create(&tid,&pthread_custom_attr,mttf_thread,NULL);
     
 	//start_server_dgram(&sock_dgram);

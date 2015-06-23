@@ -3,8 +3,9 @@
 #include "sockhelp.h"
 #include "thread.h"
 #include "broadcast.h"
+#include <fcntl.h>
 
-#define GLOBAL_CONTROLLER_PORT 4567
+#define GLOBAL_CONTROLLER_PORT 	4567
 
 static int controllers_sockets[MAX_CONTROLLERS];
 static int last_controller_socket = 0;
@@ -12,41 +13,74 @@ static int last_controller_socket = 0;
 static callback_struct callbacks[MAX_CALLBACKS];
 static int last_callback = 0;
 
+msg_struct msg_temp;
+int sock_udp;
 
-static __thread unsigned char bcast_buff[MAX_MESSAGE];
-static __thread bool new_bcast_message = false;
+struct ip_socket_receiver{
+	char ip[16];
+	int socket;
+	long value;
+};
+
+struct ip_socket_receiver connections[MAX_CONTROLLERS];
+
+bool new_bcast_message = false;
+unsigned char bcast_buff[MAX_MESSAGE];
 __thread fd_set socks;
 __thread int highsock;
 
-void build_select_list(){
-	int index;
-	
-	FD_ZERO(&socks);
-	
-	for(index = 0; index < MAX_CONTROLLERS; index++)
-		if(controllers_sockets[index] != 0){
-			FD_SET(controllers_sockets[index],&socks);
-			if(controllers_sockets[index] > highsock)
-				highsock = controllers_sockets[index];
-		}
+// Make a socket non-blocking
+void setnonblocking(int sock) {
+	int opts;
+
+	opts = fcntl(sock, F_GETFL);
+	if (opts < 0) {
+		perror("fcntl(F_GETFL)");
+		exit(EXIT_FAILURE);
+	}
+	opts = (opts | O_NONBLOCK);
+	if (fcntl(sock, F_SETFL, opts) < 0) {
+		perror("fcntl(F_SETFL)");
+		exit(EXIT_FAILURE);
+	}
+	return;
 }
 
+void build_select_list(){
+	int index;
+	FD_ZERO(&socks);
+	FD_SET(sock_udp,&socks);
+	if(sock_udp > highsock) highsock = sock_udp;
+}
+
+// This function implements the actual transfer of messages to all controllers which
+// were registered at startup.
 static void do_bcast(void) {
+	struct sockaddr_in client;
 	int index;
 	int transferred_bytes;
+	
 	for(index = 0; index < last_controller_socket; index++){
-		transferred_bytes = sock_write(controllers_sockets[index],bcast_buff,MAX_MESSAGE);
+		transferred_bytes = sock_write_udp(controllers_sockets[index],&msg_temp,sizeof(msg_struct),connections[index].ip);
+		printf("Sent %d bytes on socket %d\n", transferred_bytes, controllers_sockets[index]);
 		if(transferred_bytes < 0){
-			perror("do_bcast");
+			perror("do_bcast - sock_write_udp");
 		}
 	}
 	new_bcast_message = false;
-	// loop su tutte le socket in controllers_sockets
 }
 
+
+// This is the entry point of the demultiplexer of callback functions
+// registered to manage messages which are received from controllers as
+// broadcast functions.
 static void call_function(int sock, msg_struct msg){
 	int index;
 	for(index = 0; index < MAX_CALLBACKS; index++){
+		if(msg.type == 0) {
+			printf("MSG.TYPE = 0\n");
+			continue;
+		}
 		if(msg.type == callbacks[index].type){
 			callbacks[index].callback(sock,msg.payload,msg.size);
 			return;
@@ -54,6 +88,8 @@ static void call_function(int sock, msg_struct msg){
 	}
 }
 
+// This is the main thread which manages the reception of information
+// from remote broadcasts
 static void *broadcast_loop(void *args) {
 	(void)args;
 
@@ -62,49 +98,83 @@ static void *broadcast_loop(void *args) {
 	int index;
 	struct timeval timeout;
 	msg_struct msg;
-	msg.payload = malloc(SIZE_PAYLOAD);
-	
-	// Come forwarder. In più uno switch case sul tipo di messaggio ricevuto
+
+	bool my_new_bcast_message;
+
 	while(1){
+		
 		build_select_list();
 		
+		my_new_bcast_message = new_bcast_message;
+
 		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
-		
 		readsocks = select(highsock + 1, &socks, (fd_set *) 0, (fd_set *) 0, &timeout);
-		
 		if (readsocks < 0) {
 			perror("select");
             exit(EXIT_FAILURE);
         }
         if (readsocks == 0) {
-			printf("select - Timeout expired");
-			if(new_bcast_message)
+			printf("select - Timeout expired\n");
+			if(my_new_bcast_message)
 				do_bcast();
         } else {
-			for(index = 0; index < last_controller_socket; index++){
-				if(FD_ISSET(controllers_sockets[index],&socks)){
-					transferred_bytes = sock_read(controllers_sockets[index],&msg,sizeof(msg_struct));
-					if(transferred_bytes < 0){
-						perror("read");
-					}
-					else if(transferred_bytes == 0){
-						perror("read");
-					}
-					call_function(controllers_sockets[index],msg);
+			if(FD_ISSET(sock_udp,&socks)){
+				
+				//transferred_bytes = sock_read_udp(sock_udp,&msg,sizeof(msg_struct));
+				struct sockaddr_in receiver;
+				unsigned int size_receiver = sizeof(receiver);
+				transferred_bytes = recvfrom(sock_udp, &msg, sizeof(msg_struct), 0, (struct sockaddr *)&receiver, &size_receiver);
+		
+				if(msg.payload == (long)0){
+					printf("Received heartbeat from the leader %s\n", inet_ntoa(receiver.sin_addr));
+				} else{
+					printf("Received the value %ld from controller %s\n", msg.payload, inet_ntoa(receiver.sin_addr));
 				}
-				memset(msg.payload,0,SIZE_PAYLOAD);
+
+				if(transferred_bytes < 0){
+					perror("read_less_than_0");
+				}
+				
+				int i;
+
+				//find the index to call function
+
+				for(i = 0; i < last_controller_socket; i++){
+					if(!strcmp(connections[i].ip, inet_ntoa(receiver.sin_addr))){
+						connections[i].value = msg.payload;
+						break;
+					}
+				}
+
+				call_function(connections[i].socket,msg);
 			}
 		}
-		
 	}
-	// Quando mi sveglio dal timeout di select, controllo se new_bcast_message == true, in quel caso mando a tutti il messaggio
-	// chiamando do_bcast();
+}
+
+void start_server_dgram(int * sockfd){
+	int sock;
+	struct sockaddr_in temp;
+	
+	if((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
+		perror("start_server_dgram - socket");
+		exit(1);
+	}
+	
+	temp.sin_family = AF_INET;
+	temp.sin_addr.s_addr = htonl(INADDR_ANY);
+	temp.sin_port = htons((int)GLOBAL_CONTROLLER_PORT);
+	
+	if(bind(sock,(struct sockaddr *) &temp, sizeof(temp)) <0){
+		perror("start_server_dgram - bind");
+		exit(1);
+	}
+	*sockfd = sock;
 }
 
 void initialize_broadcast(const char *controllers_path) {
-	
-	printf("Sono nell'init del broadcast\n");
+	start_server_dgram(&sock_udp);
 	
 	FILE *f;
 	char line[128];
@@ -118,31 +188,33 @@ void initialize_broadcast(const char *controllers_path) {
 
 	while (fgets(line, 128, f) != NULL) {
 		do{
-			controllers_sockets[i] = make_connection(GLOBAL_CONTROLLER_PORT, SOCK_DGRAM, line);
-		}while(controllers_sockets[i] < 0);
+			connections[i].socket = make_connection(GLOBAL_CONTROLLER_PORT, SOCK_DGRAM, line);
+			controllers_sockets[i] = connections[i].socket;
+			strncpy(connections[i].ip,line,strlen(line)-1);
+		}while(connections[i].socket < 0);
+		printf("BROADCAST - Connected to %s with soscket %d\n", line, connections[i].socket);
 		i++;
 	}
 	last_controller_socket = i;
 
 	create_thread(broadcast_loop, NULL);
-
-	// Registrare qui un set di function pointer associati ad un tipo di messaggio, come da callback_struct
 }
 
+void broadcast(int type, long payload, size_t size) {
 
-void broadcast(int type, void *payload, size_t size) {
 
 	if(size > MAX_MESSAGE) {
 		fprintf(stderr, "%s:%d Sending a message too large\n", __FILE__, __LINE__);
 		abort();
 	}
-
-	memcpy(bcast_buff, payload, size);
+	msg_temp.type = type;
+	msg_temp.payload = payload;
+	msg_temp.size = size;
 
 	new_bcast_message = true;
 }
 
-void register_callback(int type, void (*f)(int sock, void *content, size_t size)) {
+void register_callback(int type, void (*f)(int sock, long content, size_t size)) {
 	callbacks[last_callback].type = type;
 	callbacks[last_callback++].callback = f;
 }

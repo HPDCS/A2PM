@@ -1,5 +1,6 @@
 #include "sockhelp.h"
 
+#define GLOBAL_CONTROLLER_PORT 	4567
 #define	NOT_AVAILABLE -71
 /* Take a service name, and a service type, and return a port number.  If the
    service name is not found, it tries it as a decimal number.  The number
@@ -13,16 +14,21 @@ char *proto;
   struct servent *serv;
   char *errpos;
 
+char service_name[128];
+sprintf(service_name,"%d",(int)service);
+
   /* First try to read it from /etc/services */
-  serv = getservbyname(service, proto);
+  serv = getservbyname(service_name, proto);
+
   if (serv != NULL)
     port = serv->s_port;
   else { /* Not in services, maybe a number? */
-    lport = strtol(service, &errpos, 0);
+    lport = strtol(service_name, &errpos, 0);
     //errpos points to the first next character (es: "100 ciao", it points to " ciao")
     //errpos[0] must be equal to zero to have a correct lport value
     if ( (errpos[0] != 0) || (lport < 1) || (lport > 65535) )
       return -1; /* Invalid port address */
+      
     port = htons(lport);
   }
   return port;
@@ -201,10 +207,10 @@ char *netaddress;
     return sock;
   }
   /* Otherwise, must be for udp, so bind to address. */
-  if (bind(sock, (struct sockaddr *) &address, sizeof(address)) < 0) {
+  /*if (bind(sock, (struct sockaddr *) &address, sizeof(address)) < 0) {
     perror("bind");
     return -1;
-  }
+  }*/
   return sock;
 }
 
@@ -234,8 +240,60 @@ size_t count;
   return bytes_read;
 }
 
+int sock_read_udp(sockfd, buf, count)
+int sockfd;
+char *buf;
+size_t count;
+{
+  size_t bytes_read = 0;
+  int this_read;
+  struct sockaddr_in receiver;
+  unsigned int size_receiver = sizeof(receiver);
+
+    do {
+      this_read = recvfrom(sockfd, buf, count - bytes_read, 0, (struct sockaddr *)&receiver, &size_receiver);
+    } while ( (this_read < 0) && (errno == EINTR) );
+    if (this_read < 0 && errno == EWOULDBLOCK) {
+      return (int)NOT_AVAILABLE;
+    } else if (this_read < 0){
+      return this_read;
+  }
+    else if (this_read == 0){
+      return bytes_read;
+  }
+    bytes_read += this_read;
+    buf += this_read;
+  return bytes_read;
+}
+
 /* This is just like the write() system call, accept that it will
    make sure that all data is transmitted. */
+int sock_write_udp(sockfd, buf, count, ip)
+int sockfd;
+char *buf;
+size_t count;
+char *ip;
+{
+  size_t bytes_sent = 0;
+  int this_write;
+  struct sockaddr_in receiver;
+  receiver.sin_family = AF_INET;
+  receiver.sin_addr.s_addr = inet_addr(ip);
+  receiver.sin_port = htons(GLOBAL_CONTROLLER_PORT);
+  unsigned int size_receiver = sizeof(receiver);
+
+  while (bytes_sent < count) {
+    do
+      this_write = sendto(sockfd, buf, count - bytes_sent, 0, (struct sockaddr *)&receiver, size_receiver);
+    while ( (this_write < 0) && (errno == EINTR) );
+    if (this_write <= 0)
+      return this_write;
+    bytes_sent += this_write;
+    buf += this_write;
+  }
+  return count;
+}
+
 int sock_write(sockfd, buf, count)
 int sockfd;
 char *buf;
