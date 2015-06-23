@@ -3,6 +3,9 @@
 #include <stdio.h>
 
 
+#define ALPHA 0.1
+
+
 // This computes the prediction model for linear regression
 float calculate_linear_regression(system_features_with_slopes f) {
 
@@ -33,7 +36,9 @@ float calculate_linear_regression(system_features_with_slopes f) {
 }
 
 // This evaluates the MTTF
-float get_predicted_mttf(int ml_model, system_features last_features, system_features current_features, system_features init_features){
+float get_predicted_mttf(int ml_model, system_features last_features, system_features current_features, system_features init_features) {
+
+	static float mem_used_slope = 0.0;
 
 	system_features_with_slopes f;
 	f.gen_time=current_features.time-last_features.time;
@@ -58,15 +63,25 @@ float get_predicted_mttf(int ml_model, system_features last_features, system_fea
 	f.cpu_iowait=init_features.cpu_iowait;
         f.cpu_idle=init_features.cpu_idle;
 
+	if(f.mem_used_slope > 0.0) {
+		if(mem_used_slope == 0.0) {
+			mem_used_slope = f.mem_used_slope;
+		} else {
+			mem_used_slope = ALPHA * mem_used_slope + (1 - ALPHA) * f.mem_used_slope;
+		}
+	}
+
     //return calculate_linear_regression(f);
-        float predicted=(float)((float)init_features.mem_free/(f.mem_used_slope > 0 ? f.mem_used_slope : 0))*f.gen_time;
-        printf("Initial memory: %d, mem_used_slope: %f, predicted mttf %f\n", init_features.mem_free, f.mem_used_slope/f.gen_time, predicted);
+        float predicted=(float)((float)init_features.mem_free/mem_used_slope)*f.gen_time;
+        printf("Initial memory: %d, mem_used_slope: %f, moving_avg: %f, predicted mttf %f\n", init_features.mem_free, f.mem_used_slope/f.gen_time, mem_used_slope/f.gen_time, predicted);
         return predicted;
 
 }
 
 // This evaluates the RTTF
 float get_predicted_rttc(int ml_model, system_features last_features, system_features current_features) {
+
+	static float mem_used_slope = 0.0;
 
 	system_features_with_slopes f;
 	f.gen_time=current_features.time-last_features.time;
@@ -91,7 +106,15 @@ float get_predicted_rttc(int ml_model, system_features last_features, system_fea
 	f.cpu_iowait=last_features.cpu_iowait;
         f.cpu_idle=last_features.cpu_idle;
 
-	float predicted=(float)((float)f.mem_free/(f.mem_used_slope > 0 ? f.mem_used_slope : 0))*f.gen_time;
-        printf("Free memory: %d, mem_used_slope: %f, predicted rttf: %f\n", f.mem_free, f.mem_used_slope/f.gen_time, predicted);
+	if(f.mem_used_slope > 0.0) {
+                if(mem_used_slope == 0.0) {
+                        mem_used_slope = f.mem_used_slope;
+                } else {
+                        mem_used_slope = ALPHA * mem_used_slope + (1 - ALPHA) * f.mem_used_slope;
+                }
+        }
+
+	float predicted=(float)((float)f.mem_free/mem_used_slope)*f.gen_time;
+        printf("Free memory: %d, mem_used_slope: %f, moving_avg: %f, predicted rttf: %f\n", f.mem_free, f.mem_used_slope/f.gen_time, mem_used_slope/f.gen_time, predicted);
         return predicted;
 }
