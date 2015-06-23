@@ -1,17 +1,17 @@
 #include "ml_models.h"
 
-#include <sys/sysinfo.h>
 #include <stdio.h>
+
 
 // This computes the prediction model for linear regression
 float calculate_linear_regression(system_features_with_slopes f) {
 
-	struct sysinfo info;
-	sysinfo(&info);
+	//struct sysinfo info;
+	//sysinfo(&info);
 
-	unsigned long total_ram = info.totalram;
+	//unsigned long free_ram = info.totalram;
 
-	printf("*******************Total memory in bytes: %lu\n", total_ram);
+	//printf("*******************Total memory in bytes: %lu\n", total_ram);
 
 	return
 //    -566.944 *  f.gen_time +
@@ -32,7 +32,6 @@ float calculate_linear_regression(system_features_with_slopes f) {
    -352.1951;
 }
 
-
 // This evaluates the MTTF
 float get_predicted_mttf(int ml_model, system_features last_features, system_features current_features, system_features init_features){
 
@@ -49,6 +48,7 @@ float get_predicted_mttf(int ml_model, system_features last_features, system_fea
 	f.cpu_idle_slope=current_features.cpu_idle-last_features.cpu_idle;
 	f.cpu_steal_slope=current_features.cpu_steal-last_features.cpu_steal;
 	f.n_th=init_features.n_th;
+	f.mem_free=last_features.mem_free;
 	f.mem_used=init_features.mem_used;
 	f.mem_buffers=init_features.mem_buffers;
 	f.swap_used=init_features.swap_used;
@@ -56,9 +56,13 @@ float get_predicted_mttf(int ml_model, system_features last_features, system_fea
 	f.cpu_nice=init_features.cpu_nice;
 	f.cpu_system=init_features.cpu_system;
 	f.cpu_iowait=init_features.cpu_iowait;
-    f.cpu_idle=init_features.cpu_idle;
+        f.cpu_idle=init_features.cpu_idle;
 
-    return calculate_linear_regression(f);
+    //return calculate_linear_regression(f);
+        float predicted=(float)((float)init_features.mem_free/(f.mem_used_slope > 0 ? f.mem_used_slope : 0))*f.gen_time;
+        printf("Initial memory: %d, mem_used_slope: %f, predicted mttf %f\n", init_features.mem_free, f.mem_used_slope/f.gen_time, predicted);
+        return predicted;
+
 }
 
 // This evaluates the RTTF
@@ -77,6 +81,7 @@ float get_predicted_rttc(int ml_model, system_features last_features, system_fea
 	f.cpu_idle_slope=current_features.cpu_idle-last_features.cpu_idle;
 	f.cpu_steal_slope=current_features.cpu_steal-last_features.cpu_steal;
 	f.n_th=last_features.n_th;
+	f.mem_free=last_features.mem_free;
 	f.mem_used=last_features.mem_used;
 	f.mem_buffers=last_features.mem_buffers;
 	f.swap_used=last_features.swap_used;
@@ -84,28 +89,9 @@ float get_predicted_rttc(int ml_model, system_features last_features, system_fea
 	f.cpu_nice=last_features.cpu_nice;
 	f.cpu_system=last_features.cpu_system;
 	f.cpu_iowait=last_features.cpu_iowait;
-    f.cpu_idle=last_features.cpu_idle;
+        f.cpu_idle=last_features.cpu_idle;
 
-    return calculate_linear_regression(f);
-
-/*
-	switch (ml_model) {
-	case LASSO_MODEL:
-
-		break;
-	case LINEAR_REGRESSION_MODEL:
-		break;
-	case M5P_MODEL:
-		break;
-	case REPTREE_MODEL:
-		break;
-	case SVM_MODEL:
-		break;
-	case SVM2_MODEL:
-		break;
-	default:
-		printf ("\nError: No machine learning model selected");
-		break;
-	}
-	*/
+	float predicted=(float)((float)f.mem_free/(f.mem_used_slope > 0 ? f.mem_used_slope : 0))*f.gen_time;
+        printf("Free memory: %d, mem_used_slope: %f, predicted rttf: %f\n", f.mem_free, f.mem_used_slope/f.gen_time, predicted);
+        return predicted;
 }
