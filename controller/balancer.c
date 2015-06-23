@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <arpa/inet.h>
 #include "thread.h"
+#include "timer.h"
 
 
 #define MAX_NUM_OF_CLIENTS		1024			//Max number of accepted clients
@@ -16,6 +17,7 @@
 #define NUMBER_GROUPS			3				//It must be equal to the value in server side in controller
 #define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
+#define ARRIVAL_RATE_INTERVAL	10			//Interval in seconds
 
 int current_vms[NUMBER_GROUPS];				//Number of connected VMs
 int allocated_vms[NUMBER_GROUPS];			//Number of possible VMs
@@ -23,6 +25,9 @@ int index_vms[NUMBER_GROUPS];				//It represents (for each service) the VM that 
 int actual_index[NUMBER_GROUPS];			//It represents the actual index to assign VM
 pthread_mutex_t mutex;
 int res_thread;
+int lambda = 0;
+float arrival_rate = 0.0;
+timer arrival_rate_timer;
 
 //Used to pass client info to threads
 struct arg_thread{
@@ -259,6 +264,22 @@ void build_select_list() {
 			if (connectlist[listnum] > highsock) {
 				highsock = connectlist[listnum];
 			}
+		}
+	}
+}
+
+void *arrival_rate_thread(void * sock){
+	int sockfd;
+	sockfd = (int)(long)sock;
+	while(1){
+		if(timer_value_seconds(arrival_rate_timer) > ARRIVAL_RATE_INTERVAL){
+			arrival_rate = (float)lambda/(int)ARRIVAL_RATE_INTERVAL;
+			if(sock_write(sockfd,&arrival_rate,sizeof(float)) < 0)
+				perror("Error in writing arrival rate to controller: ");
+			timer_restart(arrival_rate_timer);
+			printf("LAMBDA IS: %d and INTERVAL IS: %d\n", lambda, (int)ARRIVAL_RATE_INTERVAL);
+			printf("Sent arrival rate is %.3f. Timer restarted!\n", arrival_rate);
+			lambda = 0;
 		}
 	}
 }
@@ -517,17 +538,21 @@ int main (int argc, char *argv[]) {
 	int readsocks; 						//Number of sockets ready for reading
 	int connection;						//Client socket number
 	int sockfd_controller;				//Socket number for controller connection
+	int sockfd_controller_arrival_rate;
+	int port_arrival_rate;
 	
 	pthread_attr_t pthread_custom_attr;
 	pthread_t tid;
+	pthread_t tid_arrival_rate;
 
 	// Service_name: used to collect all the info about the forwarder net infos
 	// ip_controller: ip used to contact the controller
 	// port_controller: port number used to contact the controller
-	if (argc != 5) {
-		printf("Usage: %s Service_name ip_controller port_controller port_tpcw\n",argv[0]);
+	if (argc != 6) {
+		printf("Usage: %s Service_name ip_controller port_controller port_controller_arrival_rate port_tpcw\n",argv[0]);
 		exit(EXIT_FAILURE);
 	}
+	port_arrival_rate = atoi(argv[4]);
 	
 	/* CONNECTION LB - CONTROLLER */
 	printf("Creating socket to controller...\n");
@@ -554,7 +579,31 @@ int main (int argc, char *argv[]) {
 	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
 	pthread_attr_init(&pthread_custom_attr);
 	pthread_create(&tid,&pthread_custom_attr,controller_thread,(void *)(long)sockfd_controller);
+	
+	/* CONNECTION LB - CONTROLLER ARRIVAL RATE */
+	printf("Creating socket to controller arrival rate...\n");
+	sockfd_controller_arrival_rate = socket(AF_INET, SOCK_STREAM, 0);
+	if (sockfd_controller_arrival_rate < 0) {
+		perror("main: socket_controller_arrival_rate");
+		exit(EXIT_FAILURE);
+	}
+	// Controller's info
+	controller.sin_family = AF_INET;
+	controller.sin_addr.s_addr = inet_addr(argv[2]);
+	controller.sin_port = htons(port_arrival_rate);
+	
+	// Connect to controller (it creates the connection LB - Controller)
+	if (connect(sockfd_controller_arrival_rate, (struct sockaddr *)&controller , sizeof(controller)) < 0) {
+        perror("main: connect_to_controller");
+        exit(EXIT_FAILURE);
+    }
+    printf("Correctely connected to controller arrival_rate %s on port %d\n", inet_ntoa(controller.sin_addr), port_arrival_rate);
 
+	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
+	pthread_attr_init(&pthread_custom_attr);
+	timer_start(arrival_rate_timer);
+	pthread_create(&tid_arrival_rate,&pthread_custom_attr,arrival_rate_thread,(void *)(long)sockfd_controller_arrival_rate);
+	
 	/* CONNECTION LB - CLIENTS */
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
@@ -567,7 +616,7 @@ int main (int argc, char *argv[]) {
 
 	// Get the address information, and bind it to the socket
 	ascport = argv[1]; //argv[1] has to be a service name (not a port)
-	port = atoi(argv[4]); //sockethelp.c
+	port = atoi(argv[5]); //sockethelp.c
 	memset((char *) &server_address, 0, sizeof(server_address));
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -583,7 +632,7 @@ int main (int argc, char *argv[]) {
 		perror("listen: ");
 	}
 	printf("Listening on port %d\n", port);
-	
+
 	// Accepting clients
 	while(1) {
 		
@@ -595,7 +644,6 @@ int main (int argc, char *argv[]) {
 	                perror("accept");
 	                exit(EXIT_FAILURE);
         	}
-        	
 		setnonblocking(connection);
 
 		printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
@@ -603,6 +651,7 @@ int main (int argc, char *argv[]) {
 		struct arg_thread vm_client;
 		
 		pthread_mutex_lock(&mutex);
+		lambda++;
 		vm_client.socket = connection;
 		strcpy(vm_client.ip_address,inet_ntoa(client.sin_addr));
 		vm_client.port = ntohs(client.sin_port);
