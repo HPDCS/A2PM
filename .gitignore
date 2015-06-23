@@ -2,6 +2,9 @@
 *.exe
 controller_client
 controller_server
+controller
+client
+server
 halter
 leaks
 threads
