@@ -349,11 +349,7 @@ void * communication_thread(void * v){
                     printf("Predicted time to crash for VM %s for the service %d is: %f\n", vm->ip_address, vm->service_info.service, predicted_time_to_crash);
 
 
-			/////// ATTENZIONE QUESTO QUI NON VIENE MAI ESEGUITO
-			/////// C'è UN IF 0!!!!!!!!
-			/////// TODO
-
-                    if (0 && predicted_time_to_crash < (float)TTC_THRESHOLD) {
+                    if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
                         
                         //pthread_mutex_lock(&manage_vm_mutex);
                         pthread_mutex_lock(&mutex);
