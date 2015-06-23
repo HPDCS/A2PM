@@ -42,7 +42,7 @@ int index_rej_rate = 0;
 int sockfd_balancer;	//socket number for Load Balancer (LB)
 int sockfd_balancer_arrival_rate;
 int port_balancer_arrival_rate;
-float cloud_mttf;
+float region_mttf;
 
 /*** TODO: initialize with real provided services ***/
 enum operations{
@@ -238,9 +238,25 @@ void * mttf_thread(void * args){
 	}
 }
 
-void compute_cloud_mttf(){
+void compute_region_mttf(){
 	float mttfs = 0;
 	int number_active_vms = 0;
+	
+	int index;
+	int index_2;
+	
+	for(index = 0; index < NUMBER_GROUPS; index++){
+		for(index_2 = 0; index_2 < allocated_vms[index]; index_2++){
+			if(vm_data_set[index][index_2] != NULL && vm_data_set[index][index_2]->service_info.service == ACTIVE
+			 && vm_data_set[index][index_2]->mttf > 0){
+				mttfs = mttfs + vm_data_set[index][index_2]->mttf;
+				number_active_vms++;
+			}
+		}
+	}
+	//printf("##################### Total mttf is %f on %d active vms\n", mttfs, number_active_vms);
+	region_mttf = mttfs/number_active_vms;
+	printf("The region mttf value is %f\n", region_mttf);
 }
 
 void * arrival_rate_thread(void * bal){
@@ -272,7 +288,7 @@ void * arrival_rate_thread(void * bal){
 		printf("Received arrival_rate lambda is: %.3f\n", arrival_rate);
 		
 		pthread_mutex_lock(&mutex);
-		compute_cloud_mttf();
+		compute_region_mttf();
 		pthread_mutex_unlock(&mutex);
 	}
 }
