@@ -24,6 +24,7 @@
 #define MTTF_SLEEP				10		// avg rej rate period
 #define PATH 					"./controllers_list.txt"
 #define GLOBAL_CONTROLLER_PORT	4567
+#define ARRIVAL_RATE_INTERVAL	10		// interval in seconds
 
 void send_command_to_load_balancer();
 
@@ -40,6 +41,8 @@ float * rej_rate;
 int index_rej_rate = 0;
 int sockfd_balancer;	//socket number for Load Balancer (LB)
 int sockfd_balancer_arrival_rate;
+int port_balancer_arrival_rate;
+float cloud_mttf;
 
 /*** TODO: initialize with real provided services ***/
 enum operations{
@@ -70,6 +73,7 @@ typedef struct _vm_data {
     volatile struct vm_service service_info;
     system_features last_features;
     int last_system_features_stored;
+    float mttf;
 }vm_data;
 
 vm_data ** vm_data_set[NUMBER_GROUPS]; //Groups of VMs
@@ -234,12 +238,42 @@ void * mttf_thread(void * args){
 	}
 }
 
-void * arrival_rate_thread(void * v){
+void compute_cloud_mttf(){
+	float mttfs = 0;
+	int number_active_vms = 0;
+}
+
+void * arrival_rate_thread(void * bal){
+	struct sockaddr_in * balancer;
+	balancer = (struct sockaddr_in *)bal;
+
+	balancer->sin_family = AF_INET;
+	balancer->sin_port = htons(port_balancer_arrival_rate);
+	
 	float arrival_rate = 0;
+	
+	sockfd_balancer_arrival_rate = socket(AF_INET,SOCK_STREAM,0);
+	if(sockfd_balancer_arrival_rate < 0){
+		perror("Erron in creating socket in arrival_rate_thread: ");
+		exit(EXIT_FAILURE);
+	}
+	
+	if(connect(sockfd_balancer_arrival_rate, (struct sockaddr *)balancer, sizeof(struct sockaddr_in)) < 0){
+		perror("Error in connecting to LB in arrival_rate_thread: ");
+		exit(EXIT_FAILURE);
+	}
+	
 	while(1){
+		sleep(ARRIVAL_RATE_INTERVAL);
+		if(sock_write(sockfd_balancer_arrival_rate,&arrival_rate,sizeof(float)) < 0)
+			perror("Error in reading in arrival_rate_thread: ");
 		if(sock_read(sockfd_balancer_arrival_rate,&arrival_rate,sizeof(float)) < 0)
 			perror("Error in reading in arrival_rate_thread: ");
-		printf("############# ARRIVAL RATE IS: %.3f per sec\n", arrival_rate);
+		printf("Received arrival_rate lambda is: %.3f\n", arrival_rate);
+		
+		pthread_mutex_lock(&mutex);
+		compute_cloud_mttf();
+		pthread_mutex_unlock(&mutex);
 	}
 }
 
@@ -305,6 +339,7 @@ void * communication_thread(void * v){
                 // at least 2 sets of features needed
                 if (vm->last_system_features_stored) {
 					float mean_time_to_fail = get_predicted_mttf(ml_model, vm->last_features, current_features, init_features);
+					vm->mttf = mean_time_to_fail;
 					pthread_mutex_lock(&mttf_mutex);
 					rej_rate[index_rej_rate++] = (1/mean_time_to_fail);
 					pthread_mutex_unlock(&mttf_mutex);
@@ -518,7 +553,7 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr, int * s
 	unsigned int addr_len;
     int socket;
     int numbytes;
-    pthread_t tid;
+    pthread_t tid_balancer_arrival_rate;
     int index;
     int n;
     
@@ -541,6 +576,9 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr, int * s
     *sock_balancer = socket;
     // make a new thread for each VMs
 	printf("Communication with load_balancer %s established\n", inet_ntoa(balancer.sin_addr));
+	
+	pthread_attr_init(&pthread_custom_attr);
+    pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,arrival_rate_thread,(void *)&balancer);
 }
 
 /*
@@ -599,8 +637,8 @@ int main(int argc,char ** argv){
     int sockfd;				//socket number for Computing Nodes (CN)
     int port;				//port number for CN
     int port_balancer;		//port number for LB
-    int port_balancer_arrival_rate;
     int index;
+    int index_2;
     
     int sock_dgram;
     
@@ -644,17 +682,13 @@ int main(int argc,char ** argv){
     //Open the connection with the load_balancer
     start_server(&sockfd_balancer,port_balancer);
     printf("Server for load balancer started, listening on socket %d on port %d\n", sockfd_balancer, port_balancer);
-    start_server(&sockfd_balancer_arrival_rate,port_balancer_arrival_rate);
     
     //Start dedicated thread to communicate with LB
     //It must block until the system is not ready
     if((accept_load_balancer(sockfd_balancer,pthread_custom_attr,&sockfd_balancer)) < 0)
 		exit(1);
-    if((accept_load_balancer(sockfd_balancer_arrival_rate,pthread_custom_attr,&sockfd_balancer_arrival_rate)) < 0)
-		exit(1);
-
+		
     pthread_attr_init(&pthread_custom_attr);
-    pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,arrival_rate_thread,NULL);
     pthread_create(&tid,&pthread_custom_attr,mttf_thread,NULL);
     
 	//start_server_dgram(&sock_dgram);
