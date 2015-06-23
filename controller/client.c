@@ -290,8 +290,9 @@ int main(int argc,char ** argv){
             system("reboot");
             exit(0);
         }
+
+	sleep(10);
         
-        usleep(1000000); //perchè usleep invece di sleep se si usa 1 secondo?
     }
     
     close(sockfd);
