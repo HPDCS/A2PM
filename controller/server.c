@@ -300,8 +300,10 @@ void * update_region_features(void * arg){
 			perror("Error in reading from controller in update_region_features: ");
 		}
 		printf("UPDATE_REGION_FEATURES: temp.ip_controller is %s\n", temp.ip_controller);
+		pthread_mutex_lock(&mutex);
 		for(index = 0; index < NUMBER_REGIONS; index++){
-			if(!strcmp(regions[index].ip_controller,temp.ip_controller)){
+			printf("UPDATE_REGION_FEATURES: regions[%d].ip_controller is %s\n", index, regions[index].ip_controller);
+			if(!strcmp(regions[index].ip_controller,temp.ip_controller) || regions[index].ip_controller == NULL ){
 				strcpy(regions[index].ip_balancer,temp.ip_balancer);
 				regions[index].region_features.arrival_rate = temp.region_features.arrival_rate;
 				regions[index].region_features.mttf = temp.region_features.mttf;
@@ -310,6 +312,7 @@ void * update_region_features(void * arg){
 				break;
 			}
 		}
+		pthread_mutex_unlock(&mutex);
 	}
 }
 
@@ -328,7 +331,6 @@ void * controller_communication_thread(void * v){
 			perror("Error in accepting connections from other controllers: ");
 		}
 		
-		strcpy(regions[index++].ip_controller,inet_ntoa(incoming_controller.sin_addr));
 		pthread_attr_init(&pthread_custom_attr);
 		pthread_create(&tid,&pthread_custom_attr,update_region_features,(void *)(long)sockfd);
 	}
