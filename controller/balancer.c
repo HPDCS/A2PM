@@ -278,7 +278,7 @@ void *arrival_rate_thread(void * sock){
 	
 	while(1){
 		if(timer_value_seconds(arrival_rate_timer) > ARRIVAL_RATE_INTERVAL){
-			arrival_rate = (float)lambda/ARRIVAL_RATE_INTERVAL;
+			arrival_rate = (float)lambda/(float)ARRIVAL_RATE_INTERVAL;
 			if(sock_write(sockfd,&arrival_rate,sizeof(float)) < 0)
 				perror("Error in writing arrival rate to controller: ");
 			timer_restart(arrival_rate_timer);
@@ -354,7 +354,7 @@ void *deal_with_data(void *sockptr) {
 				// First of all, check if we have something for the client
 				if(bytes_ready_to_client > 0) {
 					//printf("Writing to client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_to_client);
-					printf("Writing to client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
+					//printf("Writing to client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
 					if((transferred_bytes = sock_write(client_socket, buffer_to_client, bytes_ready_to_client)) < 0) {
 						perror("write: sending to client from buffer");
 					}
@@ -386,7 +386,8 @@ void *deal_with_data(void *sockptr) {
 				
 				if(bytes_ready_from_client > 0) {
 					//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
-					printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
+					//printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
+				lambda++;
 				}
 				
 			}
@@ -397,7 +398,7 @@ void *deal_with_data(void *sockptr) {
 				if(bytes_ready_from_client > 0) {
 
 					//printf("Writing to VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_from_client);
-					printf("Writing to VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
+					//printf("Writing to VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
 					
                     if((transferred_bytes = sock_write(vm_socket, buffer_from_client, bytes_ready_from_client)) < 0) {
 						perror("write: sending to vm from client");
@@ -430,7 +431,7 @@ void *deal_with_data(void *sockptr) {
 				
 				if(bytes_ready_to_client > 0) {
 					//printf("Read from VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_to_client);
-					printf("Read from VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
+					//printf("Read from VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
 				}
 
 			}
@@ -656,7 +657,7 @@ int main (int argc, char *argv[]) {
 		struct arg_thread vm_client;
 		
 		pthread_mutex_lock(&mutex);
-		lambda++;
+		//lambda++;
 		vm_client.socket = connection;
 		strcpy(vm_client.ip_address,inet_ntoa(client.sin_addr));
 		vm_client.port = ntohs(client.sin_port);
