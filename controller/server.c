@@ -14,10 +14,11 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <time.h>
-
+					
 #define COMMUNICATION_TIMEOUT   60
 #define NUMBER_GROUPS           3       // one group for each type of service
 #define NUMBER_VMs              1024       // number of possible VMs initially for each group
+#define NUMBER_REGIONS			1024
 #define CONN_BACKLOG            1024    // max number of pending connections
 #define BUFSIZE                 4096    // buffer size (in bytes)
 #define TTC_THRESHOLD           300     // threshold to rejuvenate the VM (in sec)
@@ -42,6 +43,24 @@ int index_rej_rate = 0;
 int sockfd_balancer;	//socket number for Load Balancer (LB)
 int sockfd_balancer_arrival_rate;
 float region_mttf;
+int i_am_leader = 0;
+char * leader_ip;
+int socket_controller_communication;
+char my_own_ip[16];
+
+
+
+struct _region_features{
+	float arrival_rate;
+	float mttf;
+};
+
+struct _region{
+	char * ip_controller;
+	struct _region_features region_features;
+};
+
+struct _region regions[NUMBER_REGIONS];
 
 /*** TODO: initialize with real provided services ***/
 enum operations{
@@ -268,7 +287,61 @@ void compute_region_mttf(){
 	
 }
 
-void * arrival_rate_thread(void * sock){
+void * update_region_features(void * arg){
+	int sockfd;
+	sockfd = (int)(long)arg;
+	struct _region temp;
+	int index;
+	
+	while(1){
+		if(sock_read(sockfd,&temp,sizeof(struct _region)) < 0){
+			perror("Error in reading from controller in update_region_features: ");
+		}
+		for(index = 0; index < NUMBER_REGIONS; index++){
+			if(!strcmp(regions[index].ip_controller,temp.ip_controller)){
+				regions[index].region_features.arrival_rate = temp.region_features.arrival_rate;
+				regions[index].region_features.mttf = temp.region_features.mttf;
+				printf("Received region features from controller %s with arrival_rate %f and mttf %f\n", regions[index].ip_controller,
+					regions[index].region_features.arrival_rate, regions[index].region_features.mttf);
+				break;
+			}
+		}
+	}
+}
+
+void * controller_communication_thread(void * v){
+	struct sockaddr_in incoming_controller;
+	unsigned int addr_len = sizeof(incoming_controller);
+	int sockfd;
+	pthread_attr_t pthread_custom_attr;
+	pthread_t tid;
+	int index;
+	int temp_index; //used to memorize the index of the first empty space into the regions array
+	int flag = 0;
+	
+	while(1){
+		if((sockfd = accept(socket_controller_communication,(struct sockaddr *)&incoming_controller, &addr_len)) < 0){
+			perror("Error in accepting connections from other controllers: ");
+		}
+		//Fill regions data structure
+		for(index = 0; index < NUMBER_REGIONS; index++){
+			if(regions[index].ip_controller == NULL && temp_index == 0){
+				temp_index = index;
+			}
+			if(!strcmp(regions[index].ip_controller,inet_ntoa(incoming_controller.sin_addr))){
+				flag = 1;
+				break;
+			}
+		}
+		if(!flag){
+			strcmp(regions[temp_index].ip_controller,inet_ntoa(incoming_controller.sin_addr));
+		}
+		pthread_attr_init(&pthread_custom_attr);
+		pthread_create(&tid,&pthread_custom_attr,update_region_features,(void *)(long)sockfd);
+	}
+}
+
+void * get_region_features(void * sock){
 
 	int sockfd;
 	sockfd = (int)(long)sock;
@@ -276,6 +349,7 @@ void * arrival_rate_thread(void * sock){
 	float arrival_rate = 0;
 	int connection;
 	
+	struct _region_features region_features;
 	struct sockaddr_in balancer;
 	unsigned int addr_len;
 	addr_len = sizeof(struct sockaddr_in);
@@ -293,6 +367,19 @@ void * arrival_rate_thread(void * sock){
 		pthread_mutex_lock(&mutex);
 		compute_region_mttf();
 		pthread_mutex_unlock(&mutex);
+		
+		if(!i_am_leader){		
+			region_features.arrival_rate = arrival_rate;
+			region_features.mttf = region_mttf;
+			if(sock_write(socket_controller_communication,&region_features,sizeof(struct _region_features)) < 0){
+				perror("Error in sending region features to leader: \n");
+			}
+		}
+		//If i am leader, update my own values
+		else{
+			regions[0].region_features.arrival_rate = arrival_rate;
+			regions[0].region_features.mttf = region_mttf;
+		}
 	}
 }
 
@@ -644,6 +731,39 @@ void start_server(int * sockfd, int port){
     *sockfd = sock;
 }
 
+void get_my_own_ip(){
+	
+	/* LOCAL */
+	/*
+    struct ifaddrs *ifaddr, *ifa;
+    int family;
+    getifaddrs(&ifaddr);
+    for(ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next){
+		if (ifa->ifa_addr == NULL)
+			continue;
+
+		family = ifa->ifa_addr->sa_family;
+
+		if (family == AF_INET && !strcmp(ifa->ifa_name,"eth0")) {
+			strcpy(my_own_ip,inet_ntoa(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr));
+			goto ip_found;
+		}
+	}
+	printf("Unable to get my own ip!\n");
+	ip_found:
+	freeifaddrs(ifaddr);*/
+	
+	/* AMAZON */
+	
+	FILE *f;
+	f = popen("curl http//169.254.169.254/latest/meta-data/public-ipv4", "r");
+    if(f == NULL)
+        abort();
+    
+    fgets(my_own_ip, 16, f);
+    pclose(f);
+}
+
 
 int main(int argc,char ** argv){
     int sockfd;				//socket number for Computing Nodes (CN)
@@ -657,13 +777,14 @@ int main(int argc,char ** argv){
     pthread_attr_t pthread_custom_attr;
     pthread_t tid;
     pthread_t tid_balancer_arrival_rate;
+    pthread_t tid_controller_communication;
     
     communication_timeout.tv_sec = COMMUNICATION_TIMEOUT;
     communication_timeout.tv_usec = 0;
     
-    if (argc != 5) {
+    if (argc != 7) {
         /*** TODO: added argv[0] to avoid warning caused by %s ***/
-        printf("Usage: %s vm_port_number load_balancer_port_number LB_arrival_rate_port_number ml_model_number\n", argv[0]);
+        printf("Usage: %s vm_port_number load_balancer_port_number LB_arrival_rate_port_number ml_model_number i_am_leader leader_ip\n", argv[0]);
         exit(1);
     }
     else if (atoi(argv[1]) == atoi(argv[2])) {
@@ -675,6 +796,8 @@ int main(int argc,char ** argv){
     port_balancer = atoi(argv[2]);
     port_balancer_arrival_rate = atoi(argv[3]);
     ml_model = atoi(argv[4]);
+    i_am_leader = atoi(argv[5]);
+    strcpy(leader_ip, argv[6]);
     
     //Allocating initial memory for the VMs
     /*** ATTENZIONE : Problema con l'allocazione della malloc, mi permette di scrivere in altre zone di memoria di almeno 4B ***/
@@ -704,7 +827,7 @@ int main(int argc,char ** argv){
 		exit(1);
 		
     pthread_attr_init(&pthread_custom_attr);
-    pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,arrival_rate_thread,(void *)(long)sockfd_balancer_arrival_rate);
+    pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,get_region_features,(void *)(long)sockfd_balancer_arrival_rate);
     pthread_create(&tid,&pthread_custom_attr,mttf_thread,NULL);
     
 	//start_server_dgram(&sock_dgram);
@@ -714,8 +837,25 @@ int main(int argc,char ** argv){
      * (tranne me). una volta che gli altri controller hanno risposto
      * a questo punto faccio l'initialize e dovrei rientrare nei tempi (SPERO!)
      */
-    
-    
+;
+    socket_controller_communication = socket(AF_INET, SOCK_STREAM, 0);
+    if(i_am_leader){
+		memset(regions,0,NUMBER_REGIONS*sizeof(struct _region));
+		get_my_own_ip();
+		strcpy(regions[0].ip_controller,my_own_ip);
+		start_server(&socket_controller_communication,(int)GLOBAL_CONTROLLER_PORT);
+		pthread_create(&tid_controller_communication,&pthread_custom_attr, controller_communication_thread, NULL);
+	}
+    else{
+		struct sockaddr_in controller;
+		controller.sin_family = AF_INET;
+		controller.sin_addr.s_addr = inet_addr(leader_ip);
+		controller.sin_port = htons((int)GLOBAL_CONTROLLER_PORT);
+		if(connect(socket_controller_communication,(struct sockaddr *) &controller, sizeof(controller)) < 0){
+			perror("Error in connection to leader controller: \n");
+		}
+		printf("Communication correctely established with leader controller!\n");
+	}
     //Init of broadcast and leader primitives
     //initialize_broadcast(PATH);
     //initialize_leader(PATH);
