@@ -376,7 +376,7 @@ void * get_region_features(void * sock){
 		if(!i_am_leader){
 			get_my_own_ip();
 			printf("GET_REGION_FEATURES: my_own_ip is %s\n", my_own_ip);
-			strcmp(region.ip_controller,my_own_ip);		
+			strcpy(region.ip_controller,my_own_ip);		
 			region.region_features.arrival_rate = arrival_rate;
 			region.region_features.mttf = region_mttf;
 			if(sock_write(socket_controller_communication,&region,sizeof(struct _region)) < 0){
