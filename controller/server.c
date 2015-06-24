@@ -56,7 +56,7 @@ struct _region_features{
 };
 
 struct _region{
-	char * ip_controller;
+	char ip_controller[16];
 	struct _region_features region_features;
 };
 
@@ -430,8 +430,8 @@ void * communication_thread(void * v){
                 break;
             } else{
                 // features correctly received
-                printf("Received data (%d bytes) from VM %s for the service %d\n", numbytes, vm->ip_address, vm->service_info.service);
-                printf("%s\n", recv_buff);
+                //printf("Received data (%d bytes) from VM %s for the service %d\n", numbytes, vm->ip_address, vm->service_info.service);
+                //printf("%s\n", recv_buff);
                 
                 fflush(stdout);
                 get_feature(recv_buff, &current_features);
@@ -455,7 +455,7 @@ void * communication_thread(void * v){
                     printf("Predicted time to crash for VM %s for the service %d is: %f\n", vm->ip_address, vm->service_info.service, predicted_time_to_crash);
 
 
-                    if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
+                    if (0 && predicted_time_to_crash < (float)TTC_THRESHOLD) {
                         
                         //pthread_mutex_lock(&manage_vm_mutex);
                         pthread_mutex_lock(&mutex);
@@ -756,11 +756,12 @@ void get_my_own_ip(){
 	/* AMAZON */
 	
 	FILE *f;
-	f = popen("curl http//169.254.169.254/latest/meta-data/public-ipv4", "r");
+	f = popen("curl http://169.254.169.254/latest/meta-data/public-ipv4", "r");
     if(f == NULL)
         abort();
     
-    fgets(my_own_ip, 16, f);
+    //fgets(my_own_ip, 16, f);
+    fscanf(f,"%s",my_own_ip);
     pclose(f);
 }
 
@@ -842,6 +843,7 @@ int main(int argc,char ** argv){
     if(i_am_leader){
 		memset(regions,0,NUMBER_REGIONS*sizeof(struct _region));
 		get_my_own_ip();
+		printf("MY OWN IP IS: %s\n", my_own_ip);
 		strcpy(regions[0].ip_controller,my_own_ip);
 		start_server(&socket_controller_communication,(int)GLOBAL_CONTROLLER_PORT);
 		pthread_create(&tid_controller_communication,&pthread_custom_attr, controller_communication_thread, NULL);
