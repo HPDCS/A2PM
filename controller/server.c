@@ -25,7 +25,6 @@
 #define MTTF_SLEEP				10		// avg rej rate period
 #define PATH 					"./controllers_list.txt"
 #define GLOBAL_CONTROLLER_PORT	4567
-#define ARRIVAL_RATE_INTERVAL	10		// interval in seconds
 
 void send_command_to_load_balancer();
 
@@ -42,7 +41,6 @@ float * rej_rate;
 int index_rej_rate = 0;
 int sockfd_balancer;	//socket number for Load Balancer (LB)
 int sockfd_balancer_arrival_rate;
-int port_balancer_arrival_rate;
 float region_mttf;
 
 /*** TODO: initialize with real provided services ***/
@@ -270,31 +268,25 @@ void compute_region_mttf(){
 	
 }
 
-void * arrival_rate_thread(void * bal){
-	struct sockaddr_in * balancer;
-	balancer = (struct sockaddr_in *)bal;
+void * arrival_rate_thread(void * sock){
 
-	balancer->sin_family = AF_INET;
-	balancer->sin_port = htons(port_balancer_arrival_rate);
+	int sockfd;
+	sockfd = (int)(long)sock;
 	
 	float arrival_rate = 0;
+	int connection;
 	
-	sockfd_balancer_arrival_rate = socket(AF_INET,SOCK_STREAM,0);
-	if(sockfd_balancer_arrival_rate < 0){
-		perror("Erron in creating socket in arrival_rate_thread: ");
-		exit(EXIT_FAILURE);
-	}
+	struct sockaddr_in balancer;
+	unsigned int addr_len;
+	addr_len = sizeof(struct sockaddr_in);
 	
-	if(connect(sockfd_balancer_arrival_rate, (struct sockaddr *)balancer, sizeof(struct sockaddr_in)) < 0){
-		perror("Error in connecting to LB in arrival_rate_thread: ");
+	/*if((connection = accept(sockfd, (struct sockaddr *)&balancer, &addr_len)) == -1){
+		perror("Error in receiving from LB in arrival_rate_thread: ");
 		exit(EXIT_FAILURE);
-	}
+	}*/
 	
 	while(1){
-		sleep(ARRIVAL_RATE_INTERVAL);
-		if(sock_write(sockfd_balancer_arrival_rate,&arrival_rate,sizeof(float)) < 0)
-			perror("Error in reading in arrival_rate_thread: ");
-		if(sock_read(sockfd_balancer_arrival_rate,&arrival_rate,sizeof(float)) < 0)
+		if(sock_read(sockfd,&arrival_rate,sizeof(float)) < 0)
 			perror("Error in reading in arrival_rate_thread: ");
 		printf("Received arrival_rate lambda is: %.3f\n", arrival_rate);
 		
@@ -598,10 +590,7 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr, int * s
         printf("Setsockopt failed for socket id %i\n", socket);
     *sock_balancer = socket;
     // make a new thread for each VMs
-	printf("Communication with load_balancer %s established\n", inet_ntoa(balancer.sin_addr));
-	
-	pthread_attr_init(&pthread_custom_attr);
-    pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,arrival_rate_thread,(void *)&balancer);
+	printf("Communication with load_balancer %s established on port %d\n", inet_ntoa(balancer.sin_addr), ntohs(balancer.sin_port));
 }
 
 /*
@@ -660,8 +649,8 @@ int main(int argc,char ** argv){
     int sockfd;				//socket number for Computing Nodes (CN)
     int port;				//port number for CN
     int port_balancer;		//port number for LB
+    int port_balancer_arrival_rate;
     int index;
-    int index_2;
     
     int sock_dgram;
     
@@ -705,16 +694,27 @@ int main(int argc,char ** argv){
     //Open the connection with the load_balancer
     start_server(&sockfd_balancer,port_balancer);
     printf("Server for load balancer started, listening on socket %d on port %d\n", sockfd_balancer, port_balancer);
+    start_server(&sockfd_balancer_arrival_rate,port_balancer_arrival_rate);
     
     //Start dedicated thread to communicate with LB
     //It must block until the system is not ready
     if((accept_load_balancer(sockfd_balancer,pthread_custom_attr,&sockfd_balancer)) < 0)
 		exit(1);
+	if((accept_load_balancer(sockfd_balancer_arrival_rate,pthread_custom_attr,&sockfd_balancer_arrival_rate)) < 0)
+		exit(1);
 		
     pthread_attr_init(&pthread_custom_attr);
+    pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,arrival_rate_thread,(void *)(long)sockfd_balancer_arrival_rate);
     pthread_create(&tid,&pthread_custom_attr,mttf_thread,NULL);
     
 	//start_server_dgram(&sock_dgram);
+    
+    /* qui gli altri controller dovrebbero aver fatto il bind
+     * mi metto in attesa con una recv bloccante da ogni controller presente nella lista
+     * (tranne me). una volta che gli altri controller hanno risposto
+     * a questo punto faccio l'initialize e dovrei rientrare nei tempi (SPERO!)
+     */
+    
     
     //Init of broadcast and leader primitives
     //initialize_broadcast(PATH);
