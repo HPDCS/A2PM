@@ -47,7 +47,7 @@ int i_am_leader = 0;
 char leader_ip[16];
 int socket_controller_communication;
 char my_own_ip[16];
-
+char * my_balancer_ip;
 
 
 struct _region_features{
@@ -300,9 +300,10 @@ void * update_region_features(void * arg){
 		}
 		for(index = 0; index < NUMBER_REGIONS; index++){
 			if(!strcmp(regions[index].ip_controller,temp.ip_controller)){
+				strcpy(regions[index].ip_balancer,temp.ip_balancer);
 				regions[index].region_features.arrival_rate = temp.region_features.arrival_rate;
 				regions[index].region_features.mttf = temp.region_features.mttf;
-				printf("Received region features from controller %s with arrival_rate %f and mttf %f\n", regions[index].ip_controller,
+				printf("Received region features from controller %s with balancer %s with arrival_rate %f and mttf %f\n", regions[index].ip_controller, regions[index].ip_balancer,
 					regions[index].region_features.arrival_rate, regions[index].region_features.mttf);
 				break;
 			}
@@ -359,7 +360,7 @@ void * get_region_features(void * sock){
 		perror("Error in receiving from LB in arrival_rate_thread: ");
 		exit(EXIT_FAILURE);
 	}*/
-	
+	//strcpy(region_features.ip_balancer,my_balancer_ip);
 	while(1){
 		if(sock_read(sockfd,&arrival_rate,sizeof(float)) < 0)
 			perror("Error in reading in arrival_rate_thread: ");
@@ -380,6 +381,7 @@ void * get_region_features(void * sock){
 		else{
 			regions[0].region_features.arrival_rate = arrival_rate;
 			regions[0].region_features.mttf = region_mttf;
+			strcpy(regions[0].ip_balancer,my_balancer_ip);
 		}
 	}
 }
@@ -669,6 +671,7 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr, int * s
         perror("accept_load_balancer - accept");
         return (int)-1;
     }
+    my_balancer_ip = inet_ntoa(balancer.sin_addr);
     
     /*** ASK: should we set with different timeout for "handshake" phase? ***/
     // set socket timeout
