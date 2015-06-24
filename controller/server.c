@@ -57,6 +57,7 @@ struct _region_features{
 
 struct _region{
 	char ip_controller[16];
+	char ip_balancer[16];
 	struct _region_features region_features;
 };
 
