@@ -338,7 +338,7 @@ void * controller_communication_thread(void * v){
 			}
 		}
 		if(!flag){
-			strcmp(regions[temp_index].ip_controller,inet_ntoa(incoming_controller.sin_addr));
+			strcpy(regions[temp_index].ip_controller,inet_ntoa(incoming_controller.sin_addr));
 		}
 		pthread_attr_init(&pthread_custom_attr);
 		pthread_create(&tid,&pthread_custom_attr,update_region_features,(void *)(long)sockfd);
