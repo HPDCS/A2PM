@@ -319,7 +319,7 @@ void * controller_communication_thread(void * v){
 	int sockfd;
 	pthread_attr_t pthread_custom_attr;
 	pthread_t tid;
-	int index;
+	int index = 1;
 	int temp_index; //used to memorize the index of the first empty space into the regions array
 	int flag = 0;
 	
@@ -327,19 +327,8 @@ void * controller_communication_thread(void * v){
 		if((sockfd = accept(socket_controller_communication,(struct sockaddr *)&incoming_controller, &addr_len)) < 0){
 			perror("Error in accepting connections from other controllers: ");
 		}
-		//Fill regions data structure
-		for(index = 0; index < NUMBER_REGIONS; index++){
-			if(regions[index].ip_controller == NULL && temp_index == 0){
-				temp_index = index;
-			}
-			if(!strcmp(regions[index].ip_controller,inet_ntoa(incoming_controller.sin_addr))){
-				flag = 1;
-				break;
-			}
-		}
-		if(!flag){
-			strcpy(regions[temp_index].ip_controller,inet_ntoa(incoming_controller.sin_addr));
-		}
+		
+		strcpy(regions[index++].ip_controller,inet_ntoa(incoming_controller.sin_addr));
 		pthread_attr_init(&pthread_custom_attr);
 		pthread_create(&tid,&pthread_custom_attr,update_region_features,(void *)(long)sockfd);
 	}
