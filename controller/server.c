@@ -28,6 +28,7 @@
 #define GLOBAL_CONTROLLER_PORT	4567
 
 void send_command_to_load_balancer();
+void get_my_own_ip();
 
 int ml_model;                           // used machine-learning model
 struct timeval communication_timeout;
@@ -298,6 +299,7 @@ void * update_region_features(void * arg){
 		if(sock_read(sockfd,&temp,sizeof(struct _region)) < 0){
 			perror("Error in reading from controller in update_region_features: ");
 		}
+		printf("UPDATE_REGION_FEATURES: temp.ip_controller is %s\n", temp.ip_controller);
 		for(index = 0; index < NUMBER_REGIONS; index++){
 			if(!strcmp(regions[index].ip_controller,temp.ip_controller)){
 				strcpy(regions[index].ip_balancer,temp.ip_balancer);
@@ -351,7 +353,8 @@ void * get_region_features(void * sock){
 	float arrival_rate = 0;
 	int connection;
 	
-	struct _region_features region_features;
+	//struct _region_features region_features;
+	struct _region region;
 	struct sockaddr_in balancer;
 	unsigned int addr_len;
 	addr_len = sizeof(struct sockaddr_in);
@@ -360,7 +363,7 @@ void * get_region_features(void * sock){
 		perror("Error in receiving from LB in arrival_rate_thread: ");
 		exit(EXIT_FAILURE);
 	}*/
-	//strcpy(region_features.ip_balancer,my_balancer_ip);
+	strcpy(region.ip_balancer,my_balancer_ip);
 	while(1){
 		if(sock_read(sockfd,&arrival_rate,sizeof(float)) < 0)
 			perror("Error in reading in arrival_rate_thread: ");
@@ -370,10 +373,12 @@ void * get_region_features(void * sock){
 		compute_region_mttf();
 		pthread_mutex_unlock(&mutex);
 		
-		if(!i_am_leader){		
-			region_features.arrival_rate = arrival_rate;
-			region_features.mttf = region_mttf;
-			if(sock_write(socket_controller_communication,&region_features,sizeof(struct _region_features)) < 0){
+		if(!i_am_leader){
+			get_my_own_ip();
+			strcmp(region.ip_controller,my_own_ip);		
+			region.region_features.arrival_rate = arrival_rate;
+			region.region_features.mttf = region_mttf;
+			if(sock_write(socket_controller_communication,&region,sizeof(struct _region)) < 0){
 				perror("Error in sending region features to leader: \n");
 			}
 		}
