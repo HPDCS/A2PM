@@ -44,7 +44,7 @@ int sockfd_balancer;	//socket number for Load Balancer (LB)
 int sockfd_balancer_arrival_rate;
 float region_mttf;
 int i_am_leader = 0;
-char * leader_ip;
+char leader_ip[16];
 int socket_controller_communication;
 char my_own_ip[16];
 
