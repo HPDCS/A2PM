@@ -579,7 +579,7 @@ int main (int argc, char *argv[]) {
         perror("main: connect_to_controller");
         exit(EXIT_FAILURE);
     }
-    printf("Correctely connected to controller %s\n", inet_ntoa(controller.sin_addr));
+    printf("Correctely connected to controller %s on port %d\n", inet_ntoa(controller.sin_addr), ntohs(controller.sin_port));
 
 	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
 	pthread_attr_init(&pthread_custom_attr);
