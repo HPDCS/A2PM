@@ -345,8 +345,10 @@ void update_region_workload_distribution(){
 	float global_mttf = 0.0;
 	int index;
 	for(index = 0; index < NUMBER_REGIONS; index++){
-		if(strnlen(regions[index].ip_controller,16) != 0)
+		if(strnlen(regions[index].ip_controller,16) != 0){
 			global_mttf = global_mttf + regions[index].region_features.mttf;
+			
+		}
 	}
 	printf("GLOBAL MTTF IS %f\n", global_mttf); 
 	printf("-----------------\nRegion distribution probabilities:\n");
@@ -417,6 +419,7 @@ void * get_region_features(void * sock){
 			regions[0].region_features.arrival_rate = arrival_rate;
 			regions[0].region_features.mttf = region_mttf;
 			strcpy(regions[0].ip_balancer,my_balancer_ip);
+			update_region_workload_distribution();
 		}
 	}
 }
