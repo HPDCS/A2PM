@@ -29,7 +29,7 @@
 
 void send_command_to_load_balancer();
 void get_my_own_ip();
-void compute_probabilities();
+void update_region_workload_distribution();
 
 int ml_model;                           // used machine-learning model
 struct timeval communication_timeout;
@@ -285,7 +285,7 @@ void compute_region_mttf(){
 	gettimeofday(&the_timer, 0);
 
 	f = fopen("mttf_region", "a");
-	fprintf(f, "%d\t%f\n", the_timer.tv_sec, region_mttf);
+	fprintf(f, "%d\t%f\n", the_time.tv_sec, region_mttf);
 	printf("-----------------------------------> %d\t%f\n", the_timer.tv_sec, region_mttf);
 	fclose(f);
 	
@@ -312,7 +312,7 @@ void * update_region_features(void * arg){
 				regions[index].region_features.mttf = temp.region_features.mttf;
 				printf("Received region features from controller %s with balancer %s with arrival_rate %f and mttf %f\n", regions[index].ip_controller, regions[index].ip_balancer,
 					regions[index].region_features.arrival_rate, regions[index].region_features.mttf);
-				compute_probabilities();
+				update_region_workload_distribution();
 				if(sock_write(sockfd,&regions,NUMBER_REGIONS*sizeof(struct _region)) < 0){
 					perror("Error in sending the probabilities to all the other controllers: ");
 				}
@@ -341,20 +341,21 @@ void * controller_communication_thread(void * v){
 	}
 }
 
-void compute_probabilities(){
+void update_region_workload_distribution(){
 	float global_mttf = 0.0;
 	int index;
 	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0)
 			global_mttf = global_mttf + regions[index].region_features.mttf;
 	} 
-	printf("COMPUTE_PROBABILITIES: global_mttf is %f\n", global_mttf);
+	printf("-----------------\nRegion distribution probabilities:\n");
 	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0){
 			regions[index].probability = regions[index].region_features.mttf/global_mttf;
-			printf("COMPUTE_PROBABILITIES: Probability for balancer %s is %f\n", regions[index].ip_balancer, regions[index].probability);
+			printf("Balancer %s\t %f\n", regions[index].ip_balancer, regions[index].probability);
 		}
 	}
+	printf("-----------------\n");
 }
 
 void * get_region_features(void * sock){
@@ -399,11 +400,16 @@ void * get_region_features(void * sock){
 			if(sock_read(socket_controller_communication,&regions,NUMBER_REGIONS*sizeof(struct _region)) < 0){
 				perror("Error in receiving probabilities from leader: ");
 			}
-			for(index = 0; index < NUMBER_REGIONS; index++){
-				if(strnlen(regions[index].ip_controller,16) != 0){
-					printf("Controller %s - Balancer %s - Probability %f\n", regions[index].ip_controller, regions[index].ip_balancer,regions[index].probability);
-				}
-			}
+
+        		printf("-----------------\nRegion distribution probabilities:\n");
+        		for(index = 0; index < NUMBER_REGIONS; index++){
+                		if(strnlen(regions[index].ip_controller,16) != 0){
+                        		printf("Balancer %s\t %f\n", regions[index].ip_balancer, regions[index].probability);
+                		}
+        		}
+        		printf("-----------------\n");
+
+			
 		}
 		//If i am leader, update my own values
 		else{
