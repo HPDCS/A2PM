@@ -28,7 +28,7 @@ int res_thread;
 int lambda = 0;
 float arrival_rate = 0.0;
 timer arrival_rate_timer;
-
+char my_own_ip[16];
 //Used to pass client info to threads
 struct arg_thread{
 	int socket;
@@ -533,6 +533,38 @@ void create_system_image(){
 	}
 }
 
+void get_my_own_ip(){
+    /* LOCAL */
+    /*
+    struct ifaddrs *ifaddr, *ifa;
+    int family;
+    getifaddrs(&ifaddr);
+    for(ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next){
+        if (ifa->ifa_addr == NULL)
+            continue;
+
+    family = ifa->ifa_addr->sa_family;
+
+        if (family == AF_INET && !strcmp(ifa->ifa_name,"eth0")) {
+            strcpy(my_own_ip,inet_ntoa(((struct sockaddr_in *)(ifa->ifa_addr))->sin_addr));
+            goto ip_found;
+        }
+    }
+    printf("Unable to get my own ip!\n");
+    ip_found:
+    freeifaddrs(ifaddr);*/
+
+    /* AMAZON */
+
+    FILE *f;
+    f = popen("curl http://169.254.169.254/latest/meta-data/public-ipv4", "r");
+    if(f == NULL)
+        abort();
+
+    //fgets(my_own_ip, 16, f);
+    fscanf(f,"%s",my_own_ip);
+    pclose(f);
+}
 
 int main (int argc, char *argv[]) {
 	char *ascport;						//Service name
@@ -577,10 +609,15 @@ int main (int argc, char *argv[]) {
 	
 	// Connect to controller (it creates the connection LB - Controller)
 	if (connect(sockfd_controller, (struct sockaddr *)&controller , sizeof(controller)) < 0) {
-        perror("main: connect_to_controller");
-        exit(EXIT_FAILURE);
-    }
-    printf("Correctely connected to controller %s on port %d\n", inet_ntoa(controller.sin_addr), ntohs(controller.sin_port));
+            perror("main: connect_to_controller");
+            exit(EXIT_FAILURE);
+        }
+	// Send to controller balancer public ip address
+	get_my_own_ip();
+	if(sock_write(sockfd_controller, my_own_ip, 16) < 0){
+		perror("Error in sending balancer public ip address to its own controller: ");
+	}
+        printf("Balancer %s correctely connected to its own controller %s on port %d\n", my_own_ip, inet_ntoa(controller.sin_addr), ntohs(controller.sin_port));
 
 	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
 	pthread_attr_init(&pthread_custom_attr);
