@@ -285,7 +285,7 @@ void compute_region_mttf(){
 	gettimeofday(&the_timer, 0);
 
 	f = fopen("mttf_region", "a");
-	fprintf(f, "%d\t%f\n", the_time.tv_sec, region_mttf);
+	fprintf(f, "%d\t%f\n", the_timer.tv_sec, region_mttf);
 	printf("-----------------------------------> %d\t%f\n", the_timer.tv_sec, region_mttf);
 	fclose(f);
 	
