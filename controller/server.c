@@ -48,7 +48,7 @@ int i_am_leader = 0;
 char leader_ip[16];
 int socket_controller_communication;
 char my_own_ip[16];
-char * my_balancer_ip;
+char my_balancer_ip[16];
 
 
 struct _region_features{
@@ -301,9 +301,10 @@ void * update_region_features(void * arg){
 		}
 		printf("UPDATE_REGION_FEATURES: temp.ip_controller is %s\n", temp.ip_controller);
 		pthread_mutex_lock(&mutex);
-		for(index = 0; index < NUMBER_REGIONS; index++){
+		for(index = 1; index < NUMBER_REGIONS; index++){
 			printf("UPDATE_REGION_FEATURES: regions[%d].ip_controller is %s\n", index, regions[index].ip_controller);
-			if(!strcmp(regions[index].ip_controller,temp.ip_controller) || regions[index].ip_controller == NULL ){
+			if(!strcmp(regions[index].ip_controller,temp.ip_controller) || (strnlen(regions[index].ip_controller,16) == 0) ){
+				strcpy(regions[index].ip_controller,temp.ip_controller);
 				strcpy(regions[index].ip_balancer,temp.ip_balancer);
 				regions[index].region_features.arrival_rate = temp.region_features.arrival_rate;
 				regions[index].region_features.mttf = temp.region_features.mttf;
@@ -322,9 +323,6 @@ void * controller_communication_thread(void * v){
 	int sockfd;
 	pthread_attr_t pthread_custom_attr;
 	pthread_t tid;
-	int index = 1;
-	int temp_index; //used to memorize the index of the first empty space into the regions array
-	int flag = 0;
 	
 	while(1){
 		if((sockfd = accept(socket_controller_communication,(struct sockaddr *)&incoming_controller, &addr_len)) < 0){
@@ -668,7 +666,7 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr, int * s
         perror("accept_load_balancer - accept");
         return (int)-1;
     }
-    my_balancer_ip = inet_ntoa(balancer.sin_addr);
+    //my_balancer_ip = inet_ntoa(balancer.sin_addr);
     
     /*** ASK: should we set with different timeout for "handshake" phase? ***/
     // set socket timeout
@@ -678,7 +676,7 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr, int * s
         printf("Setsockopt failed for socket id %i\n", socket);
     *sock_balancer = socket;
     // make a new thread for each VMs
-	printf("Communication with load_balancer %s established on port %d\n", inet_ntoa(balancer.sin_addr), ntohs(balancer.sin_port));
+	printf("Communication with load_balancer(private ip address) %s established on port %d\n", inet_ntoa(balancer.sin_addr), ntohs(balancer.sin_port));
 }
 
 /*
@@ -825,7 +823,13 @@ int main(int argc,char ** argv){
     //It must block until the system is not ready
     if((accept_load_balancer(sockfd_balancer,pthread_custom_attr,&sockfd_balancer)) < 0)
 		exit(1);
-	if((accept_load_balancer(sockfd_balancer_arrival_rate,pthread_custom_attr,&sockfd_balancer_arrival_rate)) < 0)
+    
+    if(sock_read(sockfd_balancer,my_balancer_ip,16) < 0){
+    	perror("Error in reading balancer public ip address: ");
+    }
+    printf("Balancer correctely connected with public ip address %s\n", my_balancer_ip);
+
+    if((accept_load_balancer(sockfd_balancer_arrival_rate,pthread_custom_attr,&sockfd_balancer_arrival_rate)) < 0)
 		exit(1);
 		
     pthread_attr_init(&pthread_custom_attr);
@@ -846,6 +850,7 @@ int main(int argc,char ** argv){
 		get_my_own_ip();
 		printf("MY OWN IP IS: %s\n", my_own_ip);
 		strcpy(regions[0].ip_controller,my_own_ip);
+		strcpy(regions[0].ip_balancer,my_balancer_ip);
 		start_server(&socket_controller_communication,(int)GLOBAL_CONTROLLER_PORT);
 		pthread_create(&tid_controller_communication,&pthread_custom_attr, controller_communication_thread, NULL);
 	}
