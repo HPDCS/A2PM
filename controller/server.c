@@ -29,6 +29,7 @@
 
 void send_command_to_load_balancer();
 void get_my_own_ip();
+void compute_probabilities();
 
 int ml_model;                           // used machine-learning model
 struct timeval communication_timeout;
