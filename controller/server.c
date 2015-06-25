@@ -347,7 +347,8 @@ void update_region_workload_distribution(){
 	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0)
 			global_mttf = global_mttf + regions[index].region_features.mttf;
-	} 
+	}
+	printf("GLOBAL MTTF IS %f\n", global_mttf); 
 	printf("-----------------\nRegion distribution probabilities:\n");
 	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0){
