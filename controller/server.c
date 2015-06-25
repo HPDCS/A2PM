@@ -60,6 +60,7 @@ struct _region{
 	char ip_controller[16];
 	char ip_balancer[16];
 	struct _region_features region_features;
+	float probability;
 };
 
 struct _region regions[NUMBER_REGIONS];
@@ -310,6 +311,11 @@ void * update_region_features(void * arg){
 				regions[index].region_features.mttf = temp.region_features.mttf;
 				printf("Received region features from controller %s with balancer %s with arrival_rate %f and mttf %f\n", regions[index].ip_controller, regions[index].ip_balancer,
 					regions[index].region_features.arrival_rate, regions[index].region_features.mttf);
+				compute_probabilities();
+				if(sock_write(sockfd,&regions,NUMBER_REGIONS*sizeof(struct _region)) < 0){
+					perror("Error in sending the probabilities to all the other controllers: ");
+				}
+				printf("Prababilities correctely sent to controller %s\n", regions[index].ip_controller);
 				break;
 			}
 		}
@@ -334,6 +340,22 @@ void * controller_communication_thread(void * v){
 	}
 }
 
+void compute_probabilities(){
+	float global_mttf = 0.0;
+	int index;
+	for(index = 0; index < NUMBER_REGIONS; index++){
+		if(strnlen(regions[index].ip_controller,16) != 0)
+			global_mttf = global_mttf + regions[index].region_features.mttf;
+	} 
+	printf("COMPUTE_PROBABILITIES: global_mttf is %f\n", global_mttf);
+	for(index = 0; index < NUMBER_REGIONS; index++){
+		if(strnlen(regions[index].ip_controller,16) != 0){
+			regions[index].probability = regions[index].region_features.mttf/global_mttf;
+			printf("COMPUTE_PROBABILITIES: Probability for balancer %s is %f\n", regions[index].ip_balancer, regions[index].probability);
+		}
+	}
+}
+
 void * get_region_features(void * sock){
 
 	int sockfd;
@@ -341,6 +363,7 @@ void * get_region_features(void * sock){
 	
 	float arrival_rate = 0;
 	int connection;
+	int index;
 	
 	//struct _region_features region_features;
 	struct _region region;
@@ -361,15 +384,24 @@ void * get_region_features(void * sock){
 		pthread_mutex_lock(&mutex);
 		compute_region_mttf();
 		pthread_mutex_unlock(&mutex);
-		
+
 		if(!i_am_leader){
+			memset(regions,0,NUMBER_REGIONS*sizeof(struct _region));
 			get_my_own_ip();
 			printf("GET_REGION_FEATURES: my_own_ip is %s\n", my_own_ip);
 			strcpy(region.ip_controller,my_own_ip);		
 			region.region_features.arrival_rate = arrival_rate;
 			region.region_features.mttf = region_mttf;
 			if(sock_write(socket_controller_communication,&region,sizeof(struct _region)) < 0){
-				perror("Error in sending region features to leader: \n");
+				perror("Error in sending region features to leader: ");
+			}
+			if(sock_read(socket_controller_communication,&regions,NUMBER_REGIONS*sizeof(struct _region)) < 0){
+				perror("Error in receiving probabilities from leader: ");
+			}
+			for(index = 0; index < NUMBER_REGIONS; index++){
+				if(strnlen(regions[index].ip_controller,16) != 0){
+					printf("Controller %s - Balancer %s - Probability %f\n", regions[index].ip_controller, regions[index].ip_balancer,regions[index].probability);
+				}
 			}
 		}
 		//If i am leader, update my own values
