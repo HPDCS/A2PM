@@ -18,6 +18,7 @@
 #define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
 #define ARRIVAL_RATE_INTERVAL	10				//interval in seconds
+#define NUMBER_REGIONS			1024
 
 int current_vms[NUMBER_GROUPS];				//Number of connected VMs
 int allocated_vms[NUMBER_GROUPS];			//Number of possible VMs
@@ -29,6 +30,21 @@ int lambda = 0;
 float arrival_rate = 0.0;
 timer arrival_rate_timer;
 char my_own_ip[16];
+
+struct _region_features{
+        float arrival_rate;
+        float mttf;
+};
+
+struct _region{
+        char ip_controller[16];
+        char ip_balancer[16];
+        struct _region_features region_features;
+        float probability;
+};
+
+struct _region regions[NUMBER_REGIONS];
+
 //Used to pass client info to threads
 struct arg_thread{
 	int socket;
@@ -275,12 +291,29 @@ void *arrival_rate_thread(void * sock){
 	struct sockaddr_in controller;
 	unsigned int addr_len;
 	addr_len = sizeof(struct sockaddr_in);*/
-	
+	struct _region temp_regions[NUMBER_REGIONS];
 	while(1){
-		if(timer_value_seconds(arrival_rate_timer) > ARRIVAL_RATE_INTERVAL){
-			arrival_rate = (float)lambda/(float)ARRIVAL_RATE_INTERVAL;
+		sleep(1);
+		double time = timer_value_seconds(arrival_rate_timer);
+		if(time > ARRIVAL_RATE_INTERVAL){
+			arrival_rate = (float)lambda/(float)time;
 			if(sock_write(sockfd,&arrival_rate,sizeof(float)) < 0)
 				perror("Error in writing arrival rate to controller: ");
+			memset(temp_regions,0,sizeof(struct _region)*NUMBER_REGIONS);
+			if(sock_read(sockfd,&temp_regions,sizeof(struct _region)*NUMBER_REGIONS) < 0 ){
+				perror("Error in reading probabilities from the leader: ");
+			}
+			pthread_mutex_lock(&mutex);
+			memcpy(&regions,&temp_regions,sizeof(struct _region)*NUMBER_REGIONS);
+			pthread_mutex_unlock(&mutex);
+			printf("-----------------\nRegion distribution probabilities:\n");
+        		for(index = 0; index < NUMBER_REGIONS; index++){
+                		if(strnlen(regions[index].ip_controller,16) != 0){
+                        		regions[index].probability = regions[index].region_features.mttf/global_mttf;
+                        		printf("Balancer %s\t %f\n", regions[index].ip_balancer, regions[index].probability);
+                		}
+        		}
+        		printf("-----------------\n");
 			timer_restart(arrival_rate_timer);
 			printf("LAMBDA IS: %d and INTERVAL IS: %d\n", lambda, ARRIVAL_RATE_INTERVAL);
 			printf("Sent arrival rate is %.3f. Timer restarted!\n", arrival_rate);
@@ -642,6 +675,7 @@ int main (int argc, char *argv[]) {
     }
     printf("Correctely connected to controller %s on port %d\n", inet_ntoa(controller.sin_addr), port_arrival_rate);
 
+	memset(regions,0,sizeof(struct _region)*NUMBER_REGIONS);
 	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
 	pthread_attr_init(&pthread_custom_attr);
 	timer_start(arrival_rate_timer);
