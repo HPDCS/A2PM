@@ -19,7 +19,7 @@
 #define COMMUNICATION_TIMEOUT   60
 #define NUMBER_GROUPS           3       // one group for each type of service
 #define NUMBER_VMs              1024       // number of possible VMs initially for each group
-#define NUMBER_REGIONS			1024
+#define NUMBER_REGIONS			4
 #define CONN_BACKLOG            1024    // max number of pending connections
 #define BUFSIZE                 4096    // buffer size (in bytes)
 #define TTC_THRESHOLD           300     // threshold to rejuvenate the VM (in sec)
