@@ -314,6 +314,10 @@ void * update_region_features(void * arg){
 				printf("Received region features from controller %s with balancer %s with arrival_rate %f and mttf %f\n", regions[index].ip_controller, regions[index].ip_balancer,
 					regions[index].region_features.arrival_rate, regions[index].region_features.mttf);
 				update_region_workload_distribution();
+				int i;
+				for(i = 0; i<NUMBER_REGIONS; i++){
+					regions[i].probability = global_flow_matrix[index][i];
+				}
 				if(sock_write(sockfd,&regions,NUMBER_REGIONS*sizeof(struct _region)) < 0){
 					perror("Error in sending the probabilities to all the other controllers: ");
 				}
@@ -434,6 +438,7 @@ void * get_region_features(void * sock){
 			strcpy(regions[0].ip_balancer,my_balancer_ip);
 			update_region_workload_distribution();
 		}
+		if(sock_write(so
 	}
 }
 
