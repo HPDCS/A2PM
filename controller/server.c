@@ -14,6 +14,7 @@
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <time.h>
+#include <flow_function.h>
 					
 #define COMMUNICATION_TIMEOUT   60
 #define NUMBER_GROUPS           3       // one group for each type of service
