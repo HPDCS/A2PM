@@ -18,7 +18,7 @@
 #define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
 #define ARRIVAL_RATE_INTERVAL	10				//interval in seconds
-#define NUMBER_REGIONS			1024
+#define NUMBER_REGIONS			4
 
 int current_vms[NUMBER_GROUPS];				//Number of connected VMs
 int allocated_vms[NUMBER_GROUPS];			//Number of possible VMs
