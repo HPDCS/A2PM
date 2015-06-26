@@ -287,6 +287,7 @@ void build_select_list() {
 void *arrival_rate_thread(void * sock){
 	int sockfd;
 	sockfd = (int)(long)sock;
+	int index;
 	/*
 	struct sockaddr_in controller;
 	unsigned int addr_len;
@@ -309,7 +310,6 @@ void *arrival_rate_thread(void * sock){
 			printf("-----------------\nRegion distribution probabilities:\n");
         		for(index = 0; index < NUMBER_REGIONS; index++){
                 		if(strnlen(regions[index].ip_controller,16) != 0){
-                        		regions[index].probability = regions[index].region_features.mttf/global_mttf;
                         		printf("Balancer %s\t %f\n", regions[index].ip_balancer, regions[index].probability);
                 		}
         		}
