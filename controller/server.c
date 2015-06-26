@@ -50,7 +50,7 @@ char leader_ip[16];
 int socket_controller_communication;
 char my_own_ip[16];
 char my_balancer_ip[16];
-
+float global_flow_matrix[NUMBER_REGIONS][NUMBER_REGIONS];
 
 struct _region_features{
 	float arrival_rate;
@@ -343,14 +343,14 @@ void * controller_communication_thread(void * v){
 
 void update_region_workload_distribution(){
 	float global_mttf = 0.0;
+	float global_arrival_rate = 0.0;
 	int index;
 	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0){
 			global_mttf = global_mttf + regions[index].region_features.mttf;
-			
+			global_arrival_rate += regions[index].region_features.arrival_rate;
 		}
 	}
-	printf("GLOBAL MTTF IS %f\n", global_mttf); 
 	printf("-----------------\nRegion distribution probabilities:\n");
 	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0){
@@ -359,6 +359,18 @@ void update_region_workload_distribution(){
 		}
 	}
 	printf("-----------------\n");
+
+	float f[NUMBER_REGIONS], p[NUMBER_REGIONS];
+	for(index = 0; index < NUMBER_REGIONS; index++){
+		f[index] = regions[index].region_features.arrival_rate/global_arrival_rate;
+		p[index] = regions[index].probability;
+	}
+	
+	calculate_flow_matrix(global_flow_matrix,f,p,NUMBER_REGIONS);
+	printf("-----------------\nGlobal Flow Matrix:\n");
+	print_matrix(global_flow_matrix,NUMBER_REGIONS);
+	printf("-----------------\n");
+
 }
 
 void * get_region_features(void * sock){
