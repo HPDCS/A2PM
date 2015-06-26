@@ -309,30 +309,31 @@ void *arrival_rate_thread(void * sock){
 	addr_len = sizeof(struct sockaddr_in);*/
 	struct _region temp_regions[NUMBER_REGIONS];
 	while(1){
-		sleep(1);
+		
 		double time = timer_value_seconds(arrival_rate_timer);
-		if(time > ARRIVAL_RATE_INTERVAL){
-			arrival_rate = (float)lambda/(float)time;
-			if(sock_write(sockfd,&arrival_rate,sizeof(float)) < 0)
-				perror("Error in writing arrival rate to controller: ");
-			memset(temp_regions,0,sizeof(struct _region)*NUMBER_REGIONS);
-			if(sock_read(sockfd,&temp_regions,sizeof(struct _region)*NUMBER_REGIONS) < 0 ){
-				perror("Error in reading probabilities from the leader: ");
-			}
-			pthread_mutex_lock(&mutex);
-			memcpy(&regions,&temp_regions,sizeof(struct _region)*NUMBER_REGIONS);
-			pthread_mutex_unlock(&mutex);
-			printf("-----------------\nRegion distribution probabilities:\n");
-        		for(index = 0; index < NUMBER_REGIONS; index++){
-                		if(strnlen(regions[index].ip_controller,16) != 0){
-                        		printf("Balancer %s\t %f\n", regions[index].ip_balancer, regions[index].probability);
-                		}
-        		}
-        		printf("-----------------\n");
-			timer_restart(arrival_rate_timer);
-			printf("LAMBDA IS: %d and INTERVAL IS: %d\n", lambda, ARRIVAL_RATE_INTERVAL);
-			printf("Sent arrival rate is %.3f. Timer restarted!\n", arrival_rate);
+		arrival_rate = (float)lambda/(float)time;
+		if(sock_write(sockfd,&arrival_rate,sizeof(float)) < 0)
+			perror("Error in writing arrival rate to controller: ");
+		memset(temp_regions,0,sizeof(struct _region)*NUMBER_REGIONS);
+		if(sock_read(sockfd,&temp_regions,sizeof(struct _region)*NUMBER_REGIONS) < 0 ){
+			perror("Error in reading probabilities from the leader: ");
+		}
+		pthread_mutex_lock(&mutex);
+		memcpy(&regions,&temp_regions,sizeof(struct _region)*NUMBER_REGIONS);
+		pthread_mutex_unlock(&mutex);
+		printf("-----------------\nRegion distribution probabilities:\n");
+        	for(index = 0; index < NUMBER_REGIONS; index++){
+                	if(strnlen(regions[index].ip_controller,16) != 0){
+                       		printf("Balancer %s\t %f\n", regions[index].ip_balancer, regions[index].probability);
+                	}
+        	}
+        	printf("-----------------\n");
+		timer_restart(arrival_rate_timer);
+		printf("LAMBDA IS: %d and INTERVAL IS: %d\n", lambda, ARRIVAL_RATE_INTERVAL);
+		printf("Sent arrival rate is %.3f. Timer restarted!\n", arrival_rate);
 			lambda = 0;
+		while(timer_value_seconds(arrival_rate_timer) < ARRIVAL_RATE_INTERVAL){
+			sleep(1);
 		}
 	}
 }
