@@ -1,3 +1,3 @@
-void print_vector(float *, int);
-void print_matrix(float *, int);
-void calculate_flow_matrix(float *, float *, float *, int) ;
+void print_vector(float * f, int i);
+void print_matrix(float * f, int i);
+void calculate_flow_matrix(float * f, float * g, float * h, int i) ;
