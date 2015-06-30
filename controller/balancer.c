@@ -193,7 +193,7 @@ struct sockaddr_in check_already_connected(char * ip){
 			return client;
 		}
 	}
-
+/*
 	float sum_probability = 0;
 	float random = (float)rand()/(float)RAND_MAX;
 	index = 0;
@@ -204,18 +204,28 @@ struct sockaddr_in check_already_connected(char * ip){
 		sum_probability += regions[index].probability;
 	}
 	
-	client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
-	client.sin_port = htons(8080);
-	return client;
-	
-	/*
+	if(!strcmp(regions[index].ip_balancer,my_own_ip)){
+		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
+        	client.sin_port = vm_data_set[0][actual_index[0]].port;
+
+        	strcpy(vm_data_set[0][actual_index[0]].connected_clients[search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0")-1],ip);
+        	actual_index[0]++;
+	} else{
+		client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
+		client.sin_port = htons(8080);
+		return client;
+	}
+	*/
+
+		
+
 	client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
 	client.sin_port = vm_data_set[0][actual_index[0]].port;
 	
 	strcpy(vm_data_set[0][actual_index[0]].connected_clients[search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0")-1],ip);
 	actual_index[0]++;
 	
-	return client;*/
+	return client;
 }
 
 // Get the current open socket to a give client's IP
@@ -333,6 +343,7 @@ void *arrival_rate_thread(void * sock){
 		printf("Sent arrival rate is %.3f. Timer restarted!\n", arrival_rate);
 			lambda = 0;
 		while(timer_value_seconds(arrival_rate_timer) < ARRIVAL_RATE_INTERVAL){
+			printf("Timer value seconds: %f\n", timer_value_seconds(arrival_rate_timer));
 			sleep(1);
 		}
 	}
