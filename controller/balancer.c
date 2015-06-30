@@ -343,7 +343,7 @@ void *arrival_rate_thread(void * sock){
 		printf("Sent arrival rate is %.3f. Timer restarted!\n", arrival_rate);
 			lambda = 0;
 		while(timer_value_seconds(arrival_rate_timer) < ARRIVAL_RATE_INTERVAL){
-			printf("Timer value seconds: %f\n", timer_value_seconds(arrival_rate_timer));
+			//printf("Timer value seconds: %f\n", timer_value_seconds(arrival_rate_timer));
 			sleep(1);
 		}
 	}
