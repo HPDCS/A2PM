@@ -350,30 +350,38 @@ void update_region_workload_distribution(){
 	float global_mttf = 0.0;
 	float global_arrival_rate = 0.0;
 	int index;
+	int number_of_regions = 0;
 	for(index = 0; index < NUMBER_REGIONS; index++){
-		if(strnlen(regions[index].ip_controller,16) != 0){
+		if(strnlen(regions[index].ip_controller,16) != 0 && !isnan(regions[index].region_features.mttf) ){
 			global_mttf = global_mttf + regions[index].region_features.mttf;
 			global_arrival_rate += regions[index].region_features.arrival_rate;
+			number_of_regions++;
 		}
 	}
 	printf("-----------------\nRegion distribution probabilities:\n");
-	for(index = 0; index < NUMBER_REGIONS; index++){
+	for(index = 0; index < number_of_regions; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0){
-			regions[index].probability = regions[index].region_features.mttf/global_mttf;
-			printf("Balancer %s\t %f\n", regions[index].ip_balancer, regions[index].probability);
+			if(!isnan(regions[index].region_features.mttf))
+				regions[index].probability = regions[index].region_features.mttf/global_mttf;
+			else regions[index].probability = 0;
+			printf("Balancer %s\trate: %f\tprobability: %f\tmttf: %f\n", regions[index].ip_balancer, regions[index].region_features.arrival_rate, regions[index].probability, regions[index].region_features.mttf);
 		}
 	}
 	printf("-----------------\n");
 
-	float f[NUMBER_REGIONS], p[NUMBER_REGIONS];
-	for(index = 0; index < NUMBER_REGIONS; index++){
-		f[index] = regions[index].region_features.arrival_rate/global_arrival_rate;
-		p[index] = regions[index].probability;
+	float f[number_of_regions], p[number_of_regions];
+	memset(f,0,number_of_regions);
+	memset(p,0,number_of_regions);
+	for(index = 0; index < number_of_regions; index++){
+		if(global_arrival_rate && !isnan(regions[index].region_features.mttf)){
+			f[index] = regions[index].region_features.arrival_rate/global_arrival_rate;
+			p[index] = regions[index].probability;
+		}
 	}
 	
-	calculate_flow_matrix(global_flow_matrix,f,p,NUMBER_REGIONS);
+	calculate_flow_matrix(global_flow_matrix,f,p,number_of_regions);
 	printf("-----------------\nGlobal Flow Matrix:\n");
-	print_matrix(global_flow_matrix,NUMBER_REGIONS);
+	print_matrix(global_flow_matrix,number_of_regions);
 	printf("-----------------\n");
 
 }
