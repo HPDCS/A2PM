@@ -378,6 +378,12 @@ void update_region_workload_distribution(){
 
 }
 
+void send_regions_to_load_balancer(int sockfd){
+	if(sock_write(sockfd,&regions,sizeof(struct _region)*NUMBER_REGIONS) < 0){
+		perror("Error in sending regions to my own load balancer: ");
+	}
+}
+
 void * get_region_features(void * sock){
 
 	int sockfd;
@@ -405,7 +411,6 @@ void * get_region_features(void * sock){
 		
 		pthread_mutex_lock(&mutex);
 		compute_region_mttf();
-		pthread_mutex_unlock(&mutex);
 
 		if(!i_am_leader){
 			memset(regions,0,NUMBER_REGIONS*sizeof(struct _region));
@@ -429,7 +434,9 @@ void * get_region_features(void * sock){
         		}
         		printf("-----------------\n");
 
-			
+			if(sock_write(sockfd,&regions,sizeof(struct _region)*NUMBER_REGIONS) < 0){
+                        	perror("Error in sending regions to my own load balancer: ");
+                	}
 		}
 		//If i am leader, update my own values
 		else{
@@ -437,8 +444,16 @@ void * get_region_features(void * sock){
 			regions[0].region_features.mttf = region_mttf;
 			strcpy(regions[0].ip_balancer,my_balancer_ip);
 			update_region_workload_distribution();
+		
+			int i;
+                	for(i = 0; i<NUMBER_REGIONS; i++){
+                		regions[i].probability = global_flow_matrix[0][i];
+                	}
+			if(sock_write(sockfd,&regions,sizeof(struct _region)*NUMBER_REGIONS) < 0){
+                		perror("Error in sending regions to my own load balancer: ");
+        		}
 		}
-		if(sock_write(so
+		pthread_mutex_unlock(&mutex);
 	}
 }
 
