@@ -35,8 +35,6 @@ void calculate_flow_matrix(float *M, float *f, float *p, int size) {
 		}
 	}
 
-	print_vector(f, size);
-	print_matrix(M,3);
 	for (i=0; i<size; i++) {
 		current =0;
 		while (f[i]>0) {
