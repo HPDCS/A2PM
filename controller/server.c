@@ -231,7 +231,7 @@ void send_command_to_load_balancer(){
 	}
 	printf("Command sent to load balancer\n");
 }
-
+/*
 void * mttf_thread(void * args){
 	
 	int index;
@@ -259,7 +259,7 @@ void * mttf_thread(void * args){
 	
 		sleep(MTTF_SLEEP);
 	}
-}
+}*/
 
 void compute_region_mttf(){
 	float mttfs = 0;
@@ -364,6 +364,7 @@ void update_region_workload_distribution(){
 		if(strnlen(regions[index].ip_controller,16) != 0){
 			if(!isnan(regions[index].region_features.mttf))
 				regions[index].probability = regions[index].region_features.mttf/global_mttf;
+			else if(isinf(regions[index].region_features.mttf)) regions[index].probability = 1;
 			else regions[index].probability = 0;
 			printf("Balancer %s\trate: %f\tprobability: %f\tmttf: %f\n", regions[index].ip_balancer, regions[index].region_features.arrival_rate, regions[index].probability, regions[index].region_features.mttf);
 		}
@@ -863,7 +864,7 @@ int main(int argc,char ** argv){
     pthread_t tid;
     pthread_t tid_balancer_arrival_rate;
     pthread_t tid_controller_communication;
-    
+    pthread_mutex_init(&mttf_mutex,NULL);    
     communication_timeout.tv_sec = COMMUNICATION_TIMEOUT;
     communication_timeout.tv_usec = 0;
     
@@ -919,16 +920,10 @@ int main(int argc,char ** argv){
 		
     pthread_attr_init(&pthread_custom_attr);
     pthread_create(&tid_balancer_arrival_rate,&pthread_custom_attr,get_region_features,(void *)(long)sockfd_balancer_arrival_rate);
-    pthread_create(&tid,&pthread_custom_attr,mttf_thread,NULL);
+    //pthread_create(&tid,&pthread_custom_attr,mttf_thread,NULL);
     
 	//start_server_dgram(&sock_dgram);
     
-    /* qui gli altri controller dovrebbero aver fatto il bind
-     * mi metto in attesa con una recv bloccante da ogni controller presente nella lista
-     * (tranne me). una volta che gli altri controller hanno risposto
-     * a questo punto faccio l'initialize e dovrei rientrare nei tempi (SPERO!)
-     */
-;
     socket_controller_communication = socket(AF_INET, SOCK_STREAM, 0);
     if(i_am_leader){
 		memset(regions,0,NUMBER_REGIONS*sizeof(struct _region));
