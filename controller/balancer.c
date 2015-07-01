@@ -191,13 +191,13 @@ struct sockaddr_in get_target_ip(char * ip, int port){
 	return client;*/
 	
 	int index;
-	for(index = 0; index < current_vms[0]; index++){
+/*	for(index = 0; index < current_vms[0]; index++){
 		if((search_ip(&vm_data_set[0][index],ip,port)) > 0){
 			client.sin_addr.s_addr = inet_addr(vm_data_set[0][index].ip_address);
 			client.sin_port = vm_data_set[0][index].port;
 			return client;
 		}
-	}
+	}*/
 	
 	float sum_probability = 0;
 	float random = (float)rand()/(float)RAND_MAX;
@@ -211,9 +211,9 @@ struct sockaddr_in get_target_ip(char * ip, int port){
 	if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
         	client.sin_port = vm_data_set[0][actual_index[0]].port;
-		int free_entry_connected_clients = search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0", 0) - 1;
-        	strcpy(vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].ip,ip);
-		vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].port = port;
+		//int free_entry_connected_clients = search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0", 0) - 1;
+        	//strcpy(vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].ip,ip);
+		//vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].port = port;
         	actual_index[0]++;
 		printf("Chosen me as load balancer with index\n");
 		return client;
