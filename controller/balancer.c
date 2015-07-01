@@ -202,7 +202,7 @@ struct sockaddr_in check_already_connected(char * ip){
 		index++;
 		sum_probability += regions[index].probability;
 	}
-	
+	printf("Chosen LOAD BALANCER IP is %s\n", regions[index].ip_balancer);	
 	if(!strcmp(regions[index].ip_balancer,my_own_ip)){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
         	client.sin_port = vm_data_set[0][actual_index[0]].port;
