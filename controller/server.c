@@ -317,7 +317,9 @@ void * update_region_features(void * arg){
 				int i;
 				for(i = 0; i<NUMBER_REGIONS; i++){
 					regions[i].probability = global_flow_matrix[index][i];
-					printf("PROB: %f\n", regions[i].probability);
+					printf("------------------------------GLOBAL FLOW MATRIX UPDATE INDEX %d----\n", index);
+					print_matrix(global_flow_matrix,NUMBER_REGIONS);
+					printf("--------------------------------------------------------------\n");
 				}
 				if(sock_write(sockfd,&regions,NUMBER_REGIONS*sizeof(struct _region)) < 0){
 					perror("Error in sending the probabilities to all the other controllers: ");
