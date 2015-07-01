@@ -198,11 +198,13 @@ struct sockaddr_in check_already_connected(char * ip){
 	index = 0;
 	sum_probability = regions[index].probability;
 	while(random > sum_probability){
+		printf("#########################################\n");
 		if(strnlen(regions[index].ip_controller,16) == 0) break;
+                printf("*****************************************\n");
 		index++;
 		sum_probability += regions[index].probability;
 	}
-	printf("Chosen LOAD BALANCER IP is %s\n", regions[index].ip_balancer);	
+	printf("Chosen LOAD BALANCER IP is %s with index %d\n", regions[index].ip_balancer, index);	
 	if(!strcmp(regions[index].ip_balancer,my_own_ip)){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
         	client.sin_port = vm_data_set[0][actual_index[0]].port;
