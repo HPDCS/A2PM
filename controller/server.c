@@ -364,10 +364,14 @@ void update_region_workload_distribution(){
 	printf("-----------------\nRegion distribution probabilities:\n");
 	for(index = 0; index < number_of_regions; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0){
-			if(!isnan(regions[index].region_features.mttf))
+			if(isnan(regions[index].region_features.mttf)){
+				regions[index].probability = 0;
+			} else if(isinf(regions[index].region_features.mttf)){ 
+				regions[index].probability = 1;
+			} else{
 				regions[index].probability = regions[index].region_features.mttf/global_mttf;
-			else if(isinf(regions[index].region_features.mttf)) regions[index].probability = 1;
-			else regions[index].probability = 0;
+			}
+
 			printf("Balancer %s\trate: %f\tprobability: %f\tmttf: %f\n", regions[index].ip_balancer, regions[index].region_features.arrival_rate, regions[index].probability, regions[index].region_features.mttf);
 		}
 	}
