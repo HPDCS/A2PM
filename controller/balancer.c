@@ -15,7 +15,7 @@
 #define FORWARD_BUFFER_SIZE		1024*1024		//Size of buffers
 #define NUMBER_VMs				1024				//It must be equal to the value in server side in controller
 #define NUMBER_GROUPS			3				//It must be equal to the value in server side in controller
-#define MAX_CONNECTED_CLIENTS		5				//It represents the max number of connected clients
+#define MAX_CONNECTED_CLIENTS		1024				//It represents the max number of connected clients
 #define NOT_AVAILABLE			-71
 #define ARRIVAL_RATE_INTERVAL	10				//interval in seconds
 #define NUMBER_REGIONS			4
@@ -62,13 +62,18 @@ enum operations{
 	ADD, DELETE, REJ
 };
 
+struct _connected_clients{
+	char * ip;
+	int port;
+};
+
 //This struct is different from the struct in the controller, because balancer needs less infos than controller
 struct vm_data{
 	char ip_address[16];
 	int port;
 	
 	//It represents a list of connected clients to this particular TPCW instance
-	char * connected_clients[MAX_CONNECTED_CLIENTS];
+	struct _connected_clients connected_clients[MAX_CONNECTED_CLIENTS];
 };
 
 //System's topology representation
@@ -146,10 +151,10 @@ void append_buffer(char * original_buffer, char * aux_buffer, int * bytes_origin
 
 // Look for an IP address in the internal representation
 
-int search_ip(struct vm_data * tpcw_instance, char * ip){
+int search_ip(struct vm_data * tpcw_instance, char * ip, int port){
 	int index;
 	for(index = 0; index < MAX_CONNECTED_CLIENTS; index++){
-		if(!strcmp(tpcw_instance->connected_clients[index],ip)){
+		if(!strcmp(tpcw_instance->connected_clients[index].ip,ip) && tpcw_instance->connected_clients[index].port == port){
 			return ++index;
 		}
 	}
@@ -158,7 +163,7 @@ int search_ip(struct vm_data * tpcw_instance, char * ip){
 
 
 // Check whether a remote host has already connected to me
-struct sockaddr_in check_already_connected(char * ip){
+struct sockaddr_in get_target_ip(char * ip, int port){
 	
 	struct sockaddr_in client;
 	client.sin_family = AF_INET;
@@ -187,7 +192,7 @@ struct sockaddr_in check_already_connected(char * ip){
 	
 	int index;
 	for(index = 0; index < current_vms[0]; index++){
-		if((search_ip(&vm_data_set[0][index],ip)) > 0){
+		if((search_ip(&vm_data_set[0][index],ip,port)) > 0){
 			client.sin_addr.s_addr = inet_addr(vm_data_set[0][index].ip_address);
 			client.sin_port = vm_data_set[0][index].port;
 			return client;
@@ -206,8 +211,9 @@ struct sockaddr_in check_already_connected(char * ip){
 	if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
         	client.sin_port = vm_data_set[0][actual_index[0]].port;
-
-        	strcpy(vm_data_set[0][actual_index[0]].connected_clients[search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0")-1],ip);
+		int free_entry_connected_clients = search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0", 0) - 1;
+        	strcpy(vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].ip,ip);
+		vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].port = port;
         	actual_index[0]++;
 		printf("Chosen me as load balancer with index\n");
 		return client;
@@ -231,7 +237,7 @@ struct sockaddr_in check_already_connected(char * ip){
 }
 
 // Get the current open socket to a give client's IP
-int get_current_socket(char * ip_client) {
+int select_socket(char * ip_client, int port_client) {
 	
 	// TODO: this code is commented only for debug purposes, do not remove
 
@@ -250,7 +256,7 @@ int get_current_socket(char * ip_client) {
 	
 	struct sockaddr_in temp;
 
-	temp = check_already_connected(ip_client);
+	temp = get_target_ip(ip_client,port_client);
 	
 	printf("GET_CURRENT_SOCKET --- IP: %s AND PORT: %d\n", inet_ntoa(temp.sin_addr), ntohs(temp.sin_port));
 	// Connect to controller (it creates the connection LB - Controller)
@@ -352,12 +358,12 @@ void *arrival_rate_thread(void * sock){
 }
 
 // Manage the actual forwarding of data
-void *deal_with_data(void *sockptr) {
+void *connection_thread(void *vm_client) {
 
-	struct arg_thread arg = *(struct arg_thread *)sockptr;
+	struct arg_thread arg = *(struct arg_thread *)vm_client;
 
 	int client_socket = arg.socket;
-	int	vm_socket = get_current_socket(arg.ip_address);
+	int	vm_socket = select_socket(arg.ip_address,arg.port);
 	
 	pthread_mutex_unlock(&mutex);
 	
@@ -507,8 +513,9 @@ void *deal_with_data(void *sockptr) {
 void create_empty_list(struct vm_data * tpcw_instance){
 	int index;
 	for(index = 0; index < MAX_CONNECTED_CLIENTS; index++){
-		tpcw_instance->connected_clients[index] = (char *)malloc(16);
-		strcpy(tpcw_instance->connected_clients[index],"0.0.0.0");
+		tpcw_instance->connected_clients[index].ip = (char *)malloc(16);
+		strcpy(tpcw_instance->connected_clients[index].ip,"0.0.0.0");
+		tpcw_instance->connected_clients[index].port = 0;
 		//printf("tpcw_instance->connected_cliets[%d]: %s\n", index, tpcw_instance->connected_clients[index]);
 	}
 }
@@ -763,7 +770,7 @@ int main (int argc, char *argv[]) {
 		vm_client.port = ntohs(client.sin_port);
 		
 		printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
-		res_thread = create_thread(deal_with_data, &vm_client);
+		res_thread = create_thread(connection_thread, &vm_client);
 		if(res_thread != 0){
 			pthread_mutex_unlock(&mutex);
 		}
