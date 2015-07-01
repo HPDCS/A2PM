@@ -203,16 +203,17 @@ struct sockaddr_in check_already_connected(char * ip){
 		index++;
 		sum_probability += regions[index].probability;
 	}
-	
 	printf("Chosen load balancer is %s with index %d\n", regions[index].ip_balancer, index);	
-	if(!strcmp(regions[index].ip_balancer,my_own_ip)){
+	if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
         	client.sin_port = vm_data_set[0][actual_index[0]].port;
 
         	strcpy(vm_data_set[0][actual_index[0]].connected_clients[search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0")-1],ip);
         	actual_index[0]++;
+		printf("Chosen me as load balancer with index\n");
 		return client;
 	} else{
+		printf("Chosen load balancer is %s with index %d\n", regions[index].ip_balancer, index);
 		client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
 		client.sin_port = htons(8080);
 		return client;
