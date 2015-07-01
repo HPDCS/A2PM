@@ -39,6 +39,7 @@ void calculate_flow_matrix(float *M, float *f, float *p, int size) {
 			f_residual[i] = f[i] - p[i];
 		}
 	}
+	
 
 	for (i=0; i<size; i++) {
 		current =0;

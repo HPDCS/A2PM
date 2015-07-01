@@ -317,9 +317,6 @@ void * update_region_features(void * arg){
 				int i;
 				for(i = 0; i<NUMBER_REGIONS; i++){
 					regions[i].probability = global_flow_matrix[index][i];
-					printf("------------------------------GLOBAL FLOW MATRIX UPDATE INDEX %d----\n", index);
-					print_matrix(global_flow_matrix,NUMBER_REGIONS);
-					printf("--------------------------------------------------------------\n");
 				}
 				if(sock_write(sockfd,&regions,NUMBER_REGIONS*sizeof(struct _region)) < 0){
 					perror("Error in sending the probabilities to all the other controllers: ");
@@ -361,6 +358,7 @@ void update_region_workload_distribution(){
 			//number_of_regions++;
 		}
 	}
+	printf("Global arrival rate: %f\n", global_arrival_rate);
 	printf("-----------------\nRegion distribution probabilities:\n");
 	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0){
@@ -378,14 +376,15 @@ void update_region_workload_distribution(){
 	printf("-----------------\n");
 
 	float f[NUMBER_REGIONS], p[NUMBER_REGIONS];
-	memset(f,0,NUMBER_REGIONS);
-	memset(p,0,NUMBER_REGIONS);
+	memset(f,0,sizeof(float)*NUMBER_REGIONS);
+	memset(p,0,sizeof(float)*NUMBER_REGIONS);
 	for(index = 0; index < NUMBER_REGIONS; index++){
-		if(global_arrival_rate && !isnan(regions[index].region_features.mttf)){
+		if(global_arrival_rate != 0 && !isnan(regions[index].region_features.mttf)){
 			f[index] = regions[index].region_features.arrival_rate/global_arrival_rate;
 			p[index] = regions[index].probability;
 		}
 	}
+	
 	memset(global_flow_matrix,0,sizeof(float)*NUMBER_REGIONS*NUMBER_REGIONS);	
 	calculate_flow_matrix(global_flow_matrix,f,p,NUMBER_REGIONS);
 	printf("-----------------\nGlobal Flow Matrix:\n");
