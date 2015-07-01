@@ -358,11 +358,11 @@ void update_region_workload_distribution(){
 		if(strnlen(regions[index].ip_controller,16) != 0 && !isnan(regions[index].region_features.mttf) ){
 			global_mttf = global_mttf + regions[index].region_features.mttf;
 			global_arrival_rate += regions[index].region_features.arrival_rate;
-			number_of_regions++;
+			//number_of_regions++;
 		}
 	}
 	printf("-----------------\nRegion distribution probabilities:\n");
-	for(index = 0; index < number_of_regions; index++){
+	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(strnlen(regions[index].ip_controller,16) != 0){
 			if(isnan(regions[index].region_features.mttf)){
 				regions[index].probability = 0;
@@ -377,19 +377,19 @@ void update_region_workload_distribution(){
 	}
 	printf("-----------------\n");
 
-	float f[number_of_regions], p[number_of_regions];
-	memset(f,0,number_of_regions);
-	memset(p,0,number_of_regions);
-	for(index = 0; index < number_of_regions; index++){
+	float f[NUMBER_REGIONS], p[NUMBER_REGIONS];
+	memset(f,0,NUMBER_REGIONS);
+	memset(p,0,NUMBER_REGIONS);
+	for(index = 0; index < NUMBER_REGIONS; index++){
 		if(global_arrival_rate && !isnan(regions[index].region_features.mttf)){
 			f[index] = regions[index].region_features.arrival_rate/global_arrival_rate;
 			p[index] = regions[index].probability;
 		}
 	}
-	
-	calculate_flow_matrix(global_flow_matrix,f,p,number_of_regions);
+	memset(global_flow_matrix,0,sizeof(float)*NUMBER_REGIONS*NUMBER_REGIONS);	
+	calculate_flow_matrix(global_flow_matrix,f,p,NUMBER_REGIONS);
 	printf("-----------------\nGlobal Flow Matrix:\n");
-	print_matrix(global_flow_matrix,number_of_regions);
+	print_matrix(global_flow_matrix,NUMBER_REGIONS);
 	printf("-----------------\n");
 
 }
