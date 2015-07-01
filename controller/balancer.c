@@ -203,10 +203,12 @@ struct sockaddr_in get_target_ip(char * ip, int port){
 	float random = (float)rand()/(float)RAND_MAX;
 	index = 0;
 	sum_probability = regions[index].probability;
-	while(random < sum_probability && index < NUMBER_REGIONS){
-		if(strnlen(regions[index].ip_controller,16) == 0) break;
+	printf("Random is %f - sum_probability is %f\n", random, sum_probability);
+	while(random > sum_probability && index < NUMBER_REGIONS){
+		//if(strnlen(regions[index].ip_controller,16) == 0) break;
 		index++;
 		sum_probability += regions[index].probability;
+		printf("current sum_probability is %f with index %d\n", sum_probability, index);
 	}
 	if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
