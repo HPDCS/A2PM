@@ -172,9 +172,9 @@ struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 
         while(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS)
 		index++;                 
-	client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
+	client.sin_addr.s_addr = inet_addr(vm_data_set[0][index].ip_address);
         client.sin_port = vm_data_set[0][actual_index[0]].port;
-        printf("New user <%s, %d> forwarded to remote balancer %s\n", ip, port, regions[index].ip_balancer);
+        printf("New user <%s, %d> forwarded to remote balancer %s %s\n", ip, port, regions[index].ip_balancer,vm_data_set[0][index].ip_address);
         return client;
         
 }
