@@ -833,7 +833,10 @@ int main (int argc, char *argv[]) {
 	                exit(EXIT_FAILURE);
         	}
 		setnonblocking(connection);
-
+		if(!current_vms[0]){
+			close(connection); 
+			continue;
+		}
 		//printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
 
 		struct arg_thread vm_client;
