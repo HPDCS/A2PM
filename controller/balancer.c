@@ -185,7 +185,7 @@ struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 		index++;                 
  	 client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
          client.sin_port = htons(port_remote_balancer);
-         printf("New user <%s, %d> forwarded to remote balancer %s\ index %i\ n", ip, port, regions[index].ip_balancer, index);
+         printf("New user <%s, %d> forwarded to remote balancer %s\ index %i\n", ip, port, regions[index].ip_balancer, index);
 	return client;
      
 }
