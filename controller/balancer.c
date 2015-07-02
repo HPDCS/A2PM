@@ -164,9 +164,23 @@ int search_ip(struct vm_data * tpcw_instance, char * ip, int port){
 	return 0;
 }
 
+struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
+
+	struct sockaddr_in client;
+       	client.sin_family = AF_INET;
+        int index = 0;
+
+        while(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS)
+		index++;                 
+	client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
+        client.sin_port = vm_data_set[0][actual_index[0]].port;
+        printf("New user <%s, %d> forwarded to remote balancer %s\n", ip, port, regions[index].ip_balancer);
+        return client;
+        
+}
 
 // Check whether a remote host has already connected to me
-struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
+struct sockaddr_in get_target_ip_old(char * ip, int port, int from_balancer){
 	
 	struct sockaddr_in client;
 	client.sin_family = AF_INET;
@@ -202,7 +216,7 @@ struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 		}
 	}*/
 
-	/**
+	
 	if(from_balancer){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
                 client.sin_port = vm_data_set[0][actual_index[0]].port;
@@ -225,10 +239,9 @@ struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 		sum_probability += regions[index].probability;
 		//printf("current sum_probability is %f with index %d\n", sum_probability, index);
 	}
-	**/
-	//if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
-	if (1) {
-		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
+	
+	if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
+			client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
         	client.sin_port = vm_data_set[0][actual_index[0]].port;
 		//int free_entry_connected_clients = search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0", 0) - 1;
         	//strcpy(vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].ip,ip);
