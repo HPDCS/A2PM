@@ -206,12 +206,12 @@ struct sockaddr_in get_target_ip(char * ip, int port){
 	float random = (float)rand()/(float)RAND_MAX;
 	index = 0;
 	sum_probability = regions[index].probability;
-	printf("Random is %f - sum_probability is %f\n", random, sum_probability);
+	//printf("Random is %f - sum_probability is %f\n", random, sum_probability);
 	while(random > sum_probability && index < NUMBER_REGIONS){
 		//if(strnlen(regions[index].ip_controller,16) == 0) break;
 		index++;
 		sum_probability += regions[index].probability;
-		printf("current sum_probability is %f with index %d\n", sum_probability, index);
+		//printf("current sum_probability is %f with index %d\n", sum_probability, index);
 	}
 	if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
@@ -220,15 +220,14 @@ struct sockaddr_in get_target_ip(char * ip, int port){
         	//strcpy(vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].ip,ip);
 		//vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].port = port;
         	actual_index[0]++;
-		printf("Chosen me as load balancer\n");
+		printf("New user <%s, %d> forwarded to local region\n", ip_address, port);
 		return client;
 	} else{
-		printf("Chosen load balancer is %s with index %d\n", regions[index].ip_balancer, index);
 		client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
 		client.sin_port = htons(port_remote_balancer);
+		printf("New user <%s, %d> forwarded to remote balancer %s\n", ip_address, port, regions[index].ip_balancer);
 		return client;
 	}
-	
 		
 	/*	
 	client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
@@ -263,14 +262,14 @@ int select_socket(char * ip_client, int port_client) {
 
 	temp = get_target_ip(ip_client,port_client);
 	
-	printf("GET_CURRENT_SOCKET --- IP: %s AND PORT: %d\n", inet_ntoa(temp.sin_addr), ntohs(temp.sin_port));
+	//printf("GET_CURRENT_SOCKET --- IP: %s AND PORT: %d\n", inet_ntoa(temp.sin_addr), ntohs(temp.sin_port));
 	// Connect to controller (it creates the connection LB - Controller)
 	if (connect(da_socket, (struct sockaddr *)&temp , sizeof(temp)) < 0) {
 		perror("get_current_socket: connect_to_controller");
 		exit(EXIT_FAILURE);
 	}
-	printf("TPCW IP ADDRESS %s\n", inet_ntoa(temp.sin_addr));
-	printf("\n\n\n*** CONNECTION ESTABLISHED WITH TPCW - SOCKET %d ***\n\n\n", da_socket);
+	//printf("TPCW IP ADDRESS %s\n", inet_ntoa(temp.sin_addr));
+	//printf("\n\n\n*** CONNECTION ESTABLISHED WITH TPCW - SOCKET %d ***\n\n\n", da_socket);
 	setnonblocking(da_socket); 
 	
 	return da_socket;
@@ -818,7 +817,7 @@ int main (int argc, char *argv[]) {
         	}
 		setnonblocking(connection);
 
-		printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
+		//printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
 
 		struct arg_thread vm_client;
 		
@@ -829,7 +828,7 @@ int main (int argc, char *argv[]) {
 		vm_client.port = ntohs(client.sin_port);
 		vm_client.from_balancer = 0;		
 
-		printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
+		//printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
 		res_thread = create_thread(connection_thread, &vm_client);
 		if(res_thread != 0){
 			pthread_mutex_unlock(&mutex);
