@@ -202,6 +202,7 @@ struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 		}
 	}*/
 
+	/**
 	if(from_balancer){
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
                 client.sin_port = vm_data_set[0][actual_index[0]].port;
@@ -224,7 +225,9 @@ struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 		sum_probability += regions[index].probability;
 		//printf("current sum_probability is %f with index %d\n", sum_probability, index);
 	}
-	if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
+	**/
+	//if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
+	if (1) {
 		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
         	client.sin_port = vm_data_set[0][actual_index[0]].port;
 		//int free_entry_connected_clients = search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0", 0) - 1;
