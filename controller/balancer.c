@@ -170,6 +170,17 @@ struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
        	client.sin_family = AF_INET;
         int index = 0;
 
+        if(from_balancer){
+                client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
+                client.sin_port = vm_data_set[0][actual_index[0]].port;
+                if(actual_index[0] < (current_vms[0] - 1)){
+                        actual_index[0]++;
+                }
+                else actual_index[0] = 0;
+                printf("New user <%s, %d> forwarded to local region\n", ip, port);
+                return client;
+        }
+
         while(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS)
 		index++;                 
  	 client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
