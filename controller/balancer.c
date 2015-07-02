@@ -648,7 +648,7 @@ void * accept_balancers(void * v){
 		struct sockaddr_in client;
                 unsigned int addr_len;
                 addr_len = sizeof(struct sockaddr_in);
-                connection = accept(sock, (struct sockaddr *)&client, &addr_len);
+                connection = accept(socket_remote_balancer, (struct sockaddr *)&client, &addr_len);
                 if (connection < 0) {
                         perror("accept");
                         exit(EXIT_FAILURE);
