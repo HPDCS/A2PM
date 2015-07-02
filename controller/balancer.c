@@ -166,7 +166,7 @@ int search_ip(struct vm_data * tpcw_instance, char * ip, int port){
 
 
 // Check whether a remote host has already connected to me
-struct sockaddr_in get_target_ip(char * ip, int port){
+struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 	
 	struct sockaddr_in client;
 	client.sin_family = AF_INET;
@@ -201,6 +201,17 @@ struct sockaddr_in get_target_ip(char * ip, int port){
 			return client;
 		}
 	}*/
+
+	if(from_balancer){
+		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
+                client.sin_port = vm_data_set[0][actual_index[0]].port;
+                if(actual_index[0] < (current_vms[0] - 1)){
+                        actual_index[0]++;
+                }
+                else actual_index[0] = 0;
+                printf("New user <%s, %d> forwarded to local region\n", ip, port);
+                return client;
+	}
 	
 	float sum_probability = 0;
 	float random = (float)rand()/(float)RAND_MAX;
@@ -244,7 +255,7 @@ struct sockaddr_in get_target_ip(char * ip, int port){
 }
 
 // Get the current open socket to a give client's IP
-int select_socket(char * ip_client, int port_client) {
+int select_socket(char * ip_client, int port_client, int from_balancer) {
 	
 	// TODO: this code is commented only for debug purposes, do not remove
 
@@ -263,7 +274,7 @@ int select_socket(char * ip_client, int port_client) {
 	
 	struct sockaddr_in temp;
 
-	temp = get_target_ip(ip_client,port_client);
+	temp = get_target_ip(ip_client,port_client,from_balancer);
 	
 	//printf("GET_CURRENT_SOCKET --- IP: %s AND PORT: %d\n", inet_ntoa(temp.sin_addr), ntohs(temp.sin_port));
 	// Connect to controller (it creates the connection LB - Controller)
@@ -370,7 +381,7 @@ void *connection_thread(void *vm_client_arg) {
 	struct arg_thread vm_client = *(struct arg_thread *)vm_client_arg;
 
 	int client_socket = vm_client.socket;
-	int	vm_socket = select_socket(vm_client.ip_address,vm_client.port);
+	int	vm_socket = select_socket(vm_client.ip_address,vm_client.port,vm_client.from_balancer);
 	
 	pthread_mutex_unlock(&mutex);
 	
