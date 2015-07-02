@@ -219,7 +219,10 @@ struct sockaddr_in get_target_ip(char * ip, int port){
 		//int free_entry_connected_clients = search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0", 0) - 1;
         	//strcpy(vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].ip,ip);
 		//vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].port = port;
-        	actual_index[0]++;
+        	if(actual_index[0] < (current_vms[0] - 1)){
+			actual_index[0]++;
+		}
+		else actual_index[0] = 0;
 		printf("New user <%s, %d> forwarded to local region\n", ip, port);
 		return client;
 	} else{
@@ -250,7 +253,7 @@ int select_socket(char * ip_client, int port_client) {
 		if(actual_index[index] == current_vms[index])
 			actual_index[index] = 0;
 	}*/
-	if(actual_index[0] == current_vms[0]) actual_index[0] = 0;
+	//if(actual_index[0] == current_vms[0]) actual_index[0] = 0;
 	
 	da_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (da_socket < 0) {
