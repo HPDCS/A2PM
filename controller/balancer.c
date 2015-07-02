@@ -220,12 +220,12 @@ struct sockaddr_in get_target_ip(char * ip, int port){
         	//strcpy(vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].ip,ip);
 		//vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].port = port;
         	actual_index[0]++;
-		printf("New user <%s, %d> forwarded to local region\n", ip_address, port);
+		printf("New user <%s, %d> forwarded to local region\n", ip, port);
 		return client;
 	} else{
 		client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
 		client.sin_port = htons(port_remote_balancer);
-		printf("New user <%s, %d> forwarded to remote balancer %s\n", ip_address, port, regions[index].ip_balancer);
+		printf("New user <%s, %d> forwarded to remote balancer %s\n", ip, port, regions[index].ip_balancer);
 		return client;
 	}
 		
