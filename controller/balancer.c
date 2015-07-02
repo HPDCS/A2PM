@@ -52,6 +52,7 @@ struct arg_thread{
 	int socket;
 	char ip_address[16];
 	int port;
+	int from_balancer;
 };
 
 //Provided services
@@ -224,7 +225,7 @@ struct sockaddr_in get_target_ip(char * ip, int port){
 	} else{
 		printf("Chosen load balancer is %s with index %d\n", regions[index].ip_balancer, index);
 		client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
-		client.sin_port = htons(8080);
+		client.sin_port = htons(port_remote_balancer);
 		return client;
 	}
 	
@@ -362,12 +363,12 @@ void *arrival_rate_thread(void * sock){
 }
 
 // Manage the actual forwarding of data
-void *user_connection_thread(void *vm_client) {
+void *connection_thread(void *vm_client_arg) {
 
-	struct arg_thread arg = *(struct arg_thread *)vm_client;
+	struct arg_thread vm_client = *(struct arg_thread *)vm_client_arg;
 
-	int client_socket = arg.socket;
-	int	vm_socket = select_socket(arg.ip_address,arg.port);
+	int client_socket = vm_client.socket;
+	int	vm_socket = select_socket(vm_client.ip_address,vm_client.port);
 	
 	pthread_mutex_unlock(&mutex);
 	
@@ -640,14 +641,11 @@ void get_my_own_ip(){
     pclose(f);
 }
 
-void * balancer_connection_thread(void * vm_client){
-
-}
-
 void * accept_balancers(void * v){
 	while(1) {
 
-                struct sockaddr_in client;
+                int connection;
+		struct sockaddr_in client;
                 unsigned int addr_len;
                 addr_len = sizeof(struct sockaddr_in);
                 connection = accept(sock, (struct sockaddr *)&client, &addr_len);
@@ -662,9 +660,10 @@ void * accept_balancers(void * v){
                 vm_client.socket = connection;
                 strcpy(vm_client.ip_address,inet_ntoa(client.sin_addr));
                 vm_client.port = ntohs(client.sin_port);
+		vm_client.from_balancer = 1;		
 
                 printf("New balancer connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
-                res_thread = create_thread(balancer_connection_thread, &vm_client);
+                res_thread = create_thread(connection_thread, &vm_client);
 
         }
 }
@@ -740,17 +739,6 @@ int main (int argc, char *argv[]) {
 	controller.sin_port = htons(port_arrival_rate);
 	
 	// Connect to controller (it if (bind(sock, (struct sockaddr *) &server_address,
-          sizeof(server_address)) < 0 ) {
-                perror("bind");
-                close(sock);
-                exit(EXIT_FAILURE);
-        }
-
-        if(listen(sock, MAX_NUM_OF_CLIENTS) < 0){
-                perror("listen: ");
-        }
-        printf("Listening on port %d\n", port);
-ucreates the connection LB - Controller)
 	if (connect(sockfd_controller_arrival_rate, (struct sockaddr *)&controller , sizeof(controller)) < 0) {
         perror("main: connect_to_controller arrival rate");
         exit(EXIT_FAILURE);
@@ -798,20 +786,20 @@ ucreates the connection LB - Controller)
 	balancer_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	balancer_address.sin_port = htons(port_remote_balancer);
 	
-        sock_remote_balancer = socket(AF_INET, SOCK_STREAM, 0);
-        if (sock_remote_balancer < 0) {
+        socket_remote_balancer = socket(AF_INET, SOCK_STREAM, 0);
+        if (socket_remote_balancer < 0) {
                 perror("socket");
                 exit(EXIT_FAILURE);
         }
 
-	if (bind(sock, (struct sockaddr *) &balancer_address,
+	if (bind(socket_remote_balancer, (struct sockaddr *) &balancer_address,
           sizeof(balancer_address)) < 0 ) {
                 perror("bind");
-                close(sock);
+                close(socket_remote_balancer);
                 exit(EXIT_FAILURE);
         }
 
-        if(listen(sock_remote_balancer, MAX_NUM_OF_CLIENTS) < 0){
+        if(listen(socket_remote_balancer, MAX_NUM_OF_CLIENTS) < 0){
                 perror("listen: ");
         }
         printf("Listening on port for incoming connection from other balancers %d\n", port_remote_balancer);
@@ -839,9 +827,10 @@ ucreates the connection LB - Controller)
 		vm_client.socket = connection;
 		strcpy(vm_client.ip_address,inet_ntoa(client.sin_addr));
 		vm_client.port = ntohs(client.sin_port);
-		
+		vm_client.from_balancer = 0;		
+
 		printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
-		res_thread = create_thread(user_connection_thread, &vm_client);
+		res_thread = create_thread(connection_thread, &vm_client);
 		if(res_thread != 0){
 			pthread_mutex_unlock(&mutex);
 		}
