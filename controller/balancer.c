@@ -11,7 +11,6 @@
 #include "timer.h"
 #include <stdlib.h>
 
-
 #define MAX_NUM_OF_CLIENTS		1024			//Max number of accepted clients
 #define FORWARD_BUFFER_SIZE		1024*1024		//Size of buffers
 #define NUMBER_VMs				1024				//It must be equal to the value in server side in controller
