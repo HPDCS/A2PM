@@ -408,9 +408,8 @@ void *connection_thread(void *vm_client_arg) {
 	struct arg_thread vm_client = *(struct arg_thread *)vm_client_arg;
 
 	int client_socket = vm_client.socket;
-	int	vm_socket = select_socket(vm_client.ip_address,vm_client.port,vm_client.from_balancer);
+	int vm_socket = select_socket(vm_client.ip_address,vm_client.port,vm_client.from_balancer);
 	
-	pthread_mutex_unlock(&mutex);
 	
 	int times; // Number of reallocation
 	times = 2;
@@ -432,7 +431,6 @@ void *connection_thread(void *vm_client_arg) {
 	aux_buffer_to_client = malloc(FORWARD_BUFFER_SIZE);
 
 	bzero(buffer_from_client, FORWARD_BUFFER_SIZE);
-	bzero(buffer_to_client, FORWARD_BUFFER_SIZE);
 	bzero(aux_buffer_from_client, FORWARD_BUFFER_SIZE);
 	bzero(aux_buffer_to_client, FORWARD_BUFFER_SIZE);
 
@@ -463,7 +461,6 @@ void *connection_thread(void *vm_client_arg) {
 					
 			// Check if the client is ready
 			if(FD_ISSET(client_socket, &socks)) {
-
 				// First of all, check if we have something for the client
 				if(bytes_ready_to_client > 0) {
 					//printf("Writing to client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_to_client);
@@ -476,70 +473,69 @@ void *connection_thread(void *vm_client_arg) {
 					bzero(buffer_to_client, FORWARD_BUFFER_SIZE);
 				}
 
-	            // Always perform sock_read, if it returns a number greater than zero
-	            // something has been read then we've to append aux buffer to previous buffer (pointers)
-	            transferred_bytes = sock_read(client_socket, aux_buffer_from_client, FORWARD_BUFFER_SIZE);
-	            if(transferred_bytes < 0 && transferred_bytes != NOT_AVAILABLE) {
-					perror("read: reading from client");
-	            }
+		            // Always perform sock_read, if it returns a number greater than zero
+		            // something has been read then we've to append aux buffer to previous buffer (pointers)
+		            transferred_bytes = sock_read(client_socket, aux_buffer_from_client, FORWARD_BUFFER_SIZE);
+		            if(transferred_bytes < 0 && transferred_bytes != NOT_AVAILABLE) {
+						perror("read: reading from client");
+		            }
 	                
-	            if(transferred_bytes == 0){
-					free(buffer_from_client);
-					free(buffer_to_client);
-					free(aux_buffer_from_client);
-					free(aux_buffer_to_client);
-					close(vm_socket);
-					close(client_socket);
-					pthread_exit(NULL);
-				}
-	                
-	            if(transferred_bytes > 0){
-					append_buffer(buffer_from_client,aux_buffer_from_client,&bytes_ready_from_client,transferred_bytes,&times);	
-				}
-				
-				if(bytes_ready_from_client > 0) {
-					//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
-					//printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
-					if(!vm_client.from_balancer)
-						lambda++;
-				}
-				
+		        if(transferred_bytes == 0){
+				free(buffer_from_client);
+				free(buffer_to_client);
+				free(aux_buffer_from_client);
+				free(aux_buffer_to_client);
+				close(vm_socket);
+				close(client_socket);
+				free(vm_client_arg);
+				pthread_exit(NULL);
 			}
-			// Check if the VM is ready
-			if(FD_ISSET(vm_socket, &socks)) {
-
-				// First of all, check if we have something for the VM to send
-				if(bytes_ready_from_client > 0) {
-
-					//printf("Writing to VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_from_client);
-					//printf("Writing to VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
+	                
+       			if(transferred_bytes > 0){
+				append_buffer(buffer_from_client,aux_buffer_from_client,&bytes_ready_from_client,transferred_bytes,&times);	
+			}	
+		
+			if(bytes_ready_from_client > 0) {
+				//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
+				//printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
+				if(!vm_client.from_balancer)
+					lambda++;
+			}	
+				
+		}
+		// Check if the VM is ready
+		if(FD_ISSET(vm_socket, &socks)) {
+			// First of all, check if we have something for the VM to send
+			if(bytes_ready_from_client > 0) {
+				//printf("Writing to VM on socket %d:\n%s\n---\n",vm_socket, (char *)buffer_from_client);
+				//printf("Writing to VM on socket: %d on actual_index: %d\n", vm_socket, actual_index[0]);
 					
-                    if((transferred_bytes = sock_write(vm_socket, buffer_from_client, bytes_ready_from_client)) < 0) {
-						perror("write: sending to vm from client");
-                    }
-
-                    bytes_ready_from_client = 0;
-					bzero(buffer_from_client, FORWARD_BUFFER_SIZE);
-                }
+				if((transferred_bytes = sock_write(vm_socket, buffer_from_client, bytes_ready_from_client)) < 0) {
+					perror("write: sending to vm from client");
+	                    	}
+                		bytes_ready_from_client = 0;
+				bzero(buffer_from_client, FORWARD_BUFFER_SIZE);
+                	}
 
 	            // Always perform sock_read, if it returns a number greater than zero
 	            // something has been read then we've to append aux buffer to previous buffer (pointers)
-	            transferred_bytes = sock_read(vm_socket, aux_buffer_to_client, FORWARD_BUFFER_SIZE);
-	            if(transferred_bytes < 0 && transferred_bytes != -71) {
-					perror("read: reading from vm");
-	            }
+	        transferred_bytes = sock_read(vm_socket, aux_buffer_to_client, FORWARD_BUFFER_SIZE);
+	        if(transferred_bytes < 0 && transferred_bytes != -71) {
+			perror("read: reading from vm");
+	        }
 	       
-	            if(transferred_bytes == 0){
-					free(buffer_from_client);
-					free(buffer_to_client);
-					free(aux_buffer_from_client);
-					free(aux_buffer_to_client);
-					close(vm_socket);
-					close(client_socket);
-					pthread_exit(NULL);
-				}
+	        if(transferred_bytes == 0){
+			free(buffer_from_client);
+			free(buffer_to_client);
+			free(aux_buffer_from_client);
+			free(aux_buffer_to_client);
+			close(vm_socket);
+			close(client_socket);
+			free(vm_client_arg);	
+			pthread_exit(NULL);
+		}
 	                
-	            if(transferred_bytes > 0){
+		if(transferred_bytes > 0){
 					append_buffer(buffer_to_client,aux_buffer_to_client,&bytes_ready_to_client,transferred_bytes,&times);
 				}
 				
@@ -642,6 +638,9 @@ void create_system_image(){
 		current_vms[index] = 0;
 		actual_index[index] = 0;
 		// we need the second control because malloc may return NULL even if its argument is zero
+		current_vms[index] = 0;
+		actual_index[index] = 0;
+		// we need the second control because malloc may return NULL even if its argument is zero
 		if((vm_data_set[index] = malloc(sizeof(struct vm_data)*NUMBER_VMs)) == NULL && (NUMBER_VMs != 0))
 			exit(EXIT_FAILURE);
 		allocated_vms[index] = NUMBER_VMs;
@@ -695,15 +694,15 @@ void * accept_balancers(void * v){
                 }
                 setnonblocking(connection);
 
-                struct arg_thread vm_client;
+                struct arg_thread *vm_client=(struct arg_thread*)malloc(sizeof(struct arg_thread));
 
-                vm_client.socket = connection;
-                strcpy(vm_client.ip_address,inet_ntoa(client.sin_addr));
-                vm_client.port = ntohs(client.sin_port);
-		vm_client.from_balancer = 1;		
+                vm_client->socket = connection;
+                strcpy(vm_client->ip_address,inet_ntoa(client.sin_addr));
+                vm_client->port = ntohs(client.sin_port);
+		vm_client->from_balancer = 1;		
 
-                printf("New balancer connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
-                res_thread = create_thread(connection_thread, &vm_client);
+                printf("New balancer connected from <%s, %d>\n", vm_client->ip_address, vm_client->port);
+                res_thread = create_thread(connection_thread, vm_client);
 
         }
 }
@@ -748,9 +747,6 @@ int main (int argc, char *argv[]) {
 	controller.sin_port = htons(atoi(argv[3]));
 	
 	// Allocates memory for representing the system
-	create_system_image();
-	
-	// Connect to controller (it creates the connection LB - Controller)
 	if (connect(sockfd_controller, (struct sockaddr *)&controller , sizeof(controller)) < 0) {
             perror("main: connect_to_controller");
             exit(EXIT_FAILURE);
@@ -842,6 +838,9 @@ int main (int argc, char *argv[]) {
         if(listen(socket_remote_balancer, MAX_NUM_OF_CLIENTS) < 0){
                 perror("listen: ");
         }
+        if(listen(socket_remote_balancer, MAX_NUM_OF_CLIENTS) < 0){
+                perror("listen: ");
+        }
         printf("Listening on port for incoming connection from other balancers %d\n", port_remote_balancer);
 	pthread_create(&tid_balancer,&pthread_custom_attr,accept_balancers,NULL);
 
@@ -863,17 +862,15 @@ int main (int argc, char *argv[]) {
 		}
 		//printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
 
-		struct arg_thread vm_client;
+		struct arg_thread *vm_client=(struct arg_thread*)malloc(sizeof(struct arg_thread));
 		
-		pthread_mutex_lock(&mutex);
-		//lambda++;
-		vm_client.socket = connection;
-		strcpy(vm_client.ip_address,inet_ntoa(client.sin_addr));
-		vm_client.port = ntohs(client.sin_port);
-		vm_client.from_balancer = 0;		
+		vm_client->socket = connection;
+		strcpy(vm_client->ip_address,inet_ntoa(client.sin_addr));
+		vm_client->port = ntohs(client.sin_port);
+		vm_client->from_balancer = 0;		
 
 		//printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
-		res_thread = create_thread(connection_thread, &vm_client);
+		res_thread = create_thread(connection_thread, vm_client);
 		if(res_thread != 0){
 			pthread_mutex_unlock(&mutex);
 		}
