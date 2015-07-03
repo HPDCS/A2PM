@@ -52,7 +52,7 @@ struct arg_thread{
 	int socket;
 	char ip_address[16];
 	int port;
-	int from_balancer;
+	int user_type;
 };
 
 //Provided services
@@ -164,157 +164,71 @@ int search_ip(struct vm_data * tpcw_instance, char * ip, int port){
 	return 0;
 }
 
-struct sockaddr_in get_target_ip_old(char * ip, int port, int from_balancer){
-
-	struct sockaddr_in client;
-       	client.sin_family = AF_INET;
-        int index = 0;
-
-        if(from_balancer){
-                client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
-                client.sin_port = vm_data_set[0][actual_index[0]].port;
-                if(actual_index[0] < (current_vms[0] - 1)){
-                        actual_index[0]++;
-                }
-                else actual_index[0] = 0;
-                printf("New user <%s, %d> forwarded to local region\n", ip, port);
-                return client;
+struct sockaddr_in select_local_server_saddr(){
+        struct sockaddr_in target_server_saddr;
+        target_server_saddr.sin_family = AF_INET;
+        target_server_saddr.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
+        target_server_saddr.sin_port = vm_data_set[0][actual_index[0]].port;
+        if(actual_index[0] < (current_vms[0] - 1)){
+                actual_index[0]++;
         }
-
-        while(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS)
-		index++;                 
- 	 client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
-         client.sin_port = htons(port_remote_balancer);
-         printf("New user <%s, %d> forwarded to remote balancer %s\ index %i\n", ip, port, regions[index].ip_balancer, index);
-	return client;
-     
+        else actual_index[0] = 0;
+        printf("Selected server <i%s, %d>\n", vm_data_set[0][actual_index[0]].ip_address, vm_data_set[0][actual_index[0]].port);
+        return target_server_saddr;
 }
 
-// Check whether a remote host has already connected to me
-struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
-	
-	struct sockaddr_in client;
-	client.sin_family = AF_INET;
-	
-	// TODO: this code is commented only for debug purposes, do not remove
 
-	/*int index;
-	int service;
-	for(service = 0; service < NUMBER_GROUPS; service){
-		for(index = 0; index < current_vms[service]; index++){
-			if((search_ip(&vm_data_set[service][index],ip)) > 0){
-				client.sin_addr.s_addr = inet_addr(vm_data_set[service][index].ip_address);
-				client.sin_port = vm_data_set[service][index].port;
-				return client;
-			}
-		}
-	}
-	
-	client.sin_addr.s_addr = inet_addr(vm_data_set[service][actual_index[service]].ip_address);
-	client.sin_port = vm_data_set[service][actual_index[service]].port;
-	
-	strcpy(vm_data_set[service][actual_index[service]].connected_clients[search_ip(&vm_data_set[service][actual_index[service]], "0.0.0.0")-1],ip);
-	actual_index[service]++;
-	
-	return client;*/
-	
-	int index;
-/*	for(index = 0; index < current_vms[0]; index++){
-		if((search_ip(&vm_data_set[0][index],ip,port)) > 0){
-			client.sin_addr.s_addr = inet_addr(vm_data_set[0][index].ip_address);
-			client.sin_port = vm_data_set[0][index].port;
-			return client;
-		}
-	}*/
+// select the server address
+struct sockaddr_in get_target_server_saddr(char * ip, int port, int user_type){
+        struct sockaddr_in target_server_saddr;
+        target_server_saddr.sin_family = AF_INET;
+        int index;
+        float probability_sum;
+        float random;
 
-	
-	if(from_balancer){
-		client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
-                client.sin_port = vm_data_set[0][actual_index[0]].port;
-                if(actual_index[0] < (current_vms[0] - 1)){
-                        actual_index[0]++;
-                }
-                else actual_index[0] = 0;
-                printf("New user <%s, %d> forwarded to local region\n", ip, port);
-                return client;
-	}
-	
-	float sum_probability = 0;
-	float random = (float)rand()/(float)RAND_MAX;
-	index = 0;
-	sum_probability = regions[index].probability;
-	//printf("Random is %f - sum_probability is %f\n", random, sum_probability);
-	while(random > sum_probability && index < NUMBER_REGIONS){
-		//if(strnlen(regions[index].ip_controller,16) == 0) break;
-		index++;
-		sum_probability += regions[index].probability;
-		//printf("current sum_probability is %f with index %d\n", sum_probability, index);
-	}
-	
-	if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
-			client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
-        	client.sin_port = vm_data_set[0][actual_index[0]].port;
-		//int free_entry_connected_clients = search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0", 0) - 1;
-        	//strcpy(vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].ip,ip);
-		//vm_data_set[0][actual_index[0]].connected_clients[free_entry_connected_clients].port = port;
-        	if(actual_index[0] < (current_vms[0] - 1)){
-			actual_index[0]++;
-		}
-		else actual_index[0] = 0;
-		printf("New user <%s, %d> forwarded to local region\n", ip, port);
-		return client;
-	} else{
-		client.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
-		client.sin_port = htons(port_remote_balancer);
-		printf("New user <%s, %d> forwarded to remote balancer %s\n", ip, port, regions[index].ip_balancer);
-		return client;
-	}
-		
-	/*	
-	client.sin_addr.s_addr = inet_addr(vm_data_set[0][actual_index[0]].ip_address);
-	client.sin_port = vm_data_set[0][actual_index[0]].port;
-	
-	strcpy(vm_data_set[0][actual_index[0]].connected_clients[search_ip(&vm_data_set[0][actual_index[0]], "0.0.0.0")-1],ip);
-	actual_index[0]++;
-	
-	return client;
-	*/
+
+        switch(user_type) {
+
+                case 0: //from a user
+                        probability_sum = 0;
+                        random = (float)rand()/(float)RAND_MAX;
+                        index = 0;
+                        probability_sum = regions[index].probability;
+                        while(random > probability_sum && index < NUMBER_REGIONS){
+                                index++;
+                                probability_sum += regions[index].probability;
+                        }
+                        if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
+                                printf("New user <i%s, %d> forwarded to local region\n", ip, port);
+                                return select_local_server_saddr();
+                        } else{
+                                target_server_saddr.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
+                                target_server_saddr.sin_port = htons(port_remote_balancer);
+                                printf("New user <%s, %d> forwarded to remote balancer %s\n", ip, port, regions[index].ip_balancer);
+                                return target_server_saddr;
+                        }
+
+                case 1: //from a remote balancer
+                        printf("Request from remote balancer <%s, %d> forwarded to local region\n", ip, port);
+                        return select_local_server_saddr();
+        }
 }
 
-// Get the current open socket to a give client's IP
-int select_socket(char * ip_client, int port_client, int from_balancer) {
-	
-	// TODO: this code is commented only for debug purposes, do not remove
 
-	/*int index;
-	for(index = 0; index < NUMBER_GROUPS; index++){
-		if(actual_index[index] == current_vms[index])
-			actual_index[index] = 0;
-	}*/
-	//if(actual_index[0] == current_vms[0]) actual_index[0] = 0;
-	
-	da_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (da_socket < 0) {
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-	
-	struct sockaddr_in temp;
+int create_socket(char * ip_client, int port_client, int user_type) {
 
-	temp = get_target_ip(ip_client,port_client,from_balancer);
-	
-	//printf("GET_CURRENT_SOCKET --- IP: %s AND PORT: %d\n", inet_ntoa(temp.sin_addr), ntohs(temp.sin_port));
-	// Connect to controller (it creates the connection LB - Controller)
-	if (connect(da_socket, (struct sockaddr *)&temp , sizeof(temp)) < 0) {
-		perror("get_current_socket: connect_to_controller");
-		exit(EXIT_FAILURE);
-	}
-	//printf("TPCW IP ADDRESS %s\n", inet_ntoa(temp.sin_addr));
-	//printf("\n\n\n*** CONNECTION ESTABLISHED WITH TPCW - SOCKET %d ***\n\n\n", da_socket);
-	setnonblocking(da_socket); 
-	
-	return da_socket;
-
+        int sock_id = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock_id< 0) {
+                perror("Error while creating socket for new user");
+                exit(EXIT_FAILURE);
+        }
+        struct sockaddr_in saddr = get_target_server_saddr(ip_client,port_client,user_type);
+        if (connect(sock_id, (struct sockaddr *)&saddr , sizeof(saddr)) < 0) {
+                perror("Error while connecting socket for new user");
+                exit(EXIT_FAILURE);
+        }
+        setnonblocking(sock_id);
+        return sock_id;
 }
 
 // Make an already-created socket non-blocking
@@ -405,44 +319,67 @@ void *arrival_rate_thread(void * sock){
 // Manage the actual forwarding of data
 void *connection_thread(void *vm_client_arg) {
 
-	struct arg_thread vm_client = *(struct arg_thread *)vm_client_arg;
+      void *buffer_from_client;
+        void *buffer_to_client;
+        void *aux_buffer_from_client;
+        void *aux_buffer_to_client;
+        int connectlist[2];  // One thread handles only 2 sockets
+        fd_set socks; // Socket file descriptors we want to wake up for, using select()
+        int highsock;
+        struct arg_thread vm_client = *(struct arg_thread *)vm_client_arg;
 
-	int client_socket = vm_client.socket;
-	int vm_socket = select_socket(vm_client.ip_address,vm_client.port,vm_client.from_balancer);
-	
-	
-	int times; // Number of reallocation
-	times = 2;
+        int client_socket = vm_client.socket;
+        int vm_socket = create_socket(vm_client.ip_address,vm_client.port,vm_client.user_type);
 
-	char *cur_char;
-	int readsocks; // Number of sockets ready for reading
-	int my_service;
 
-	struct timeval timeout;
+        int times; // Number of reallocation
+        times = 2;
 
-	int bytes_ready_from_client = 0;
-	int bytes_ready_to_client = 0;
+        char *cur_char;
+        int readsocks; // Number of sockets ready for reading
+        int my_service;
 
-	int transferred_bytes; // How many bytes are transferred by a sock_write or sock_read operation
+        struct timeval timeout;
 
-	buffer_from_client = malloc(FORWARD_BUFFER_SIZE);
-	buffer_to_client = malloc(FORWARD_BUFFER_SIZE);
-	aux_buffer_from_client = malloc(FORWARD_BUFFER_SIZE);
-	aux_buffer_to_client = malloc(FORWARD_BUFFER_SIZE);
+        int bytes_ready_from_client = 0;
+        int bytes_ready_to_client = 0;
 
-	bzero(buffer_from_client, FORWARD_BUFFER_SIZE);
-	bzero(aux_buffer_from_client, FORWARD_BUFFER_SIZE);
-	bzero(aux_buffer_to_client, FORWARD_BUFFER_SIZE);
+        int transferred_bytes; // How many bytes are transferred by a sock_write or sock_read operation
 
-	bzero(&connectlist, sizeof(connectlist));
+        buffer_from_client = malloc(FORWARD_BUFFER_SIZE);
+        buffer_to_client = malloc(FORWARD_BUFFER_SIZE);
+        aux_buffer_from_client = malloc(FORWARD_BUFFER_SIZE);
+        aux_buffer_to_client = malloc(FORWARD_BUFFER_SIZE);
 
-	connectlist[0] = client_socket;	
-	connectlist[1] = vm_socket;
+        bzero(buffer_from_client, FORWARD_BUFFER_SIZE);
+        bzero(aux_buffer_from_client, FORWARD_BUFFER_SIZE);
+        bzero(aux_buffer_to_client, FORWARD_BUFFER_SIZE);
+
+        bzero(&connectlist, sizeof(connectlist));
+
+        connectlist[0] = client_socket;
+        connectlist[1] = vm_socket;
 
 	// We never finish forwarding data!
 	while (1) {
 		
-                build_select_list();
+                int listnum; //Current item in connectlist for for loops
+                /* First put together fd_set for select(), which will
+                   consist of the sock veriable in case a new connection
+                   is coming in, plus all the sockets we have already
+                   accepted. */
+                FD_ZERO(&socks);
+                /* Loops through all the possible connections and adds those sockets to the fd_set */
+                // Note that one thread handles only 2 sockets, one from the  client, the other to the VM!
+
+                for (listnum = 0; listnum < 2; listnum++) {
+                        if (connectlist[listnum] != 0) {
+                                FD_SET(connectlist[listnum],&socks);
+                                if (connectlist[listnum] > highsock) {
+                                        highsock = connectlist[listnum];
+                                }
+                        }
+                }
 
 				// Setup a timeout
                 timeout.tv_sec = 1;
@@ -498,7 +435,7 @@ void *connection_thread(void *vm_client_arg) {
 			if(bytes_ready_from_client > 0) {
 				//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
 				//printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
-				if(!vm_client.from_balancer)
+				if(!vm_client.user_type)
 					lambda++;
 			}	
 				
@@ -699,7 +636,7 @@ void * accept_balancers(void * v){
                 vm_client->socket = connection;
                 strcpy(vm_client->ip_address,inet_ntoa(client.sin_addr));
                 vm_client->port = ntohs(client.sin_port);
-		vm_client->from_balancer = 1;		
+		vm_client->user_type = 1;		
 
                 printf("New balancer connected from <%s, %d>\n", vm_client->ip_address, vm_client->port);
                 res_thread = create_thread(connection_thread, vm_client);
@@ -867,13 +804,10 @@ int main (int argc, char *argv[]) {
 		vm_client->socket = connection;
 		strcpy(vm_client->ip_address,inet_ntoa(client.sin_addr));
 		vm_client->port = ntohs(client.sin_port);
-		vm_client->from_balancer = 0;		
+		vm_client->user_type = 0;		
 
 		//printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
 		res_thread = create_thread(connection_thread, vm_client);
-		if(res_thread != 0){
-			pthread_mutex_unlock(&mutex);
-		}
 
 	}
 }
