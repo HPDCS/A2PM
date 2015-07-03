@@ -164,7 +164,7 @@ int search_ip(struct vm_data * tpcw_instance, char * ip, int port){
 	return 0;
 }
 
-struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
+struct sockaddr_in get_target_ip_old(char * ip, int port, int from_balancer){
 
 	struct sockaddr_in client;
        	client.sin_family = AF_INET;
@@ -191,7 +191,7 @@ struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 }
 
 // Check whether a remote host has already connected to me
-struct sockaddr_in get_target_ip_old(char * ip, int port, int from_balancer){
+struct sockaddr_in get_target_ip(char * ip, int port, int from_balancer){
 	
 	struct sockaddr_in client;
 	client.sin_family = AF_INET;
