@@ -33,6 +33,31 @@ char my_own_ip[16];
 int port_remote_balancer;
 int socket_remote_balancer;
 
+// TODO: posso non discriminare DEL e REJ operations? Credo di si!
+enum operations{
+        ADD, DELETE, REJ
+};
+
+
+enum services{
+        SERVICE_1, SERVICE_2, SERVICE_3
+};
+
+struct virtual_machine{
+	char ip[16];                    // vm's ip address
+	int port;                               // vm's port number
+	enum services service;  // service provided by the vm
+	enum operations op;             // operation performed by the controller
+};
+
+struct _vm_list_elem {
+	struct virtual_machine vm;
+	struct _vm_list_elem *next;
+} vm_list_elem;
+
+struct vm_list_elem *vm_list;
+
+
 struct _region_features{
         float arrival_rate;
         float mttf;
@@ -55,28 +80,12 @@ struct arg_thread{
 	int user_type;
 };
 
-//Provided services
-enum services{
-	SERVICE_1, SERVICE_2, SERVICE_3
-};
 
-// TODO: posso non discriminare DEL e REJ operations? Credo di si!
-enum operations{
-	ADD, DELETE, REJ
-};
-
-struct _connected_clients{
-	char * ip;
-	int port;
-};
 
 //This struct is different from the struct in the controller, because balancer needs less infos than controller
 struct vm_data{
 	char ip_address[16];
 	int port;
-	
-	//It represents a list of connected clients to this particular TPCW instance
-	struct _connected_clients connected_clients[MAX_CONNECTED_CLIENTS];
 };
 
 //System's topology representation
@@ -152,17 +161,6 @@ void append_buffer(char * original_buffer, char * aux_buffer, int * bytes_origin
 	bzero(aux_buffer, FORWARD_BUFFER_SIZE);
 }
 
-// Look for an IP address in the internal representation
-
-int search_ip(struct vm_data * tpcw_instance, char * ip, int port){
-	int index;
-	for(index = 0; index < MAX_CONNECTED_CLIENTS; index++){
-		if(!strcmp(tpcw_instance->connected_clients[index].ip,ip) && tpcw_instance->connected_clients[index].port == port){
-			return ++index;
-		}
-	}
-	return 0;
-}
 
 struct sockaddr_in select_local_server_saddr(){
         struct sockaddr_in target_server_saddr;
@@ -462,7 +460,7 @@ void *connection_thread(void *vm_client_arg) {
 	        }
 	       
 	        if(transferred_bytes == 0){
-			free(buffer_from_client);
+i			free(buffer_from_client);
 			free(buffer_to_client);
 			free(aux_buffer_from_client);
 			free(aux_buffer_to_client);
@@ -489,15 +487,20 @@ void *connection_thread(void *vm_client_arg) {
 }
 
 
-void create_empty_list(struct vm_data * tpcw_instance){
-	int index;
-	for(index = 0; index < MAX_CONNECTED_CLIENTS; index++){
-		tpcw_instance->connected_clients[index].ip = (char *)malloc(16);
-		strcpy(tpcw_instance->connected_clients[index].ip,"0.0.0.0");
-		tpcw_instance->connected_clients[index].port = 0;
-		//printf("tpcw_instance->connected_cliets[%d]: %s\n", index, tpcw_instance->connected_clients[index]);
+void add_vm(struct virtual_machine * vm) {
+	struct virtual_machine *new_vm=(struct virtual_machine *)malloc(sizeof (struct virtual_machine));
+	memcpy(new_vm, vm, sizeof(struct virtual_machine));
+	if (vm_list == NULL) {
+		vm_list = vm;
+	} else {
+		struct vm_list_elem* vm_list_temp = vm_list;
+		while (vm_list_temp->next) {
+			vm_list_temp = vm_list_temp->next;
+		}
+		vm_list_temp->next = vm;
 	}
 }
+
 
 
 /*
@@ -512,13 +515,6 @@ void * controller_thread(void * v){
 	printf("Controller thread up!\n");
 	int socket;
 	socket = (int)(long)v;
-	// struct virtual_machine represents all the needed info to perform a connection with it
-	struct virtual_machine{
-		char ip[16];			// vm's ip address
-		int port;				// vm's port number
-		enum services service;	// service provided by the vm
-		enum operations op;		// operation performed by the controller
-	};
 	
 	struct virtual_machine vm;
 	
@@ -526,29 +522,19 @@ void * controller_thread(void * v){
 	while(1){
 		// Wait for info by the controller
 		if ((recv(socket, &vm, sizeof(struct virtual_machine),0)) == -1){
-				perror("controller_thread - recv");
-				if (errno == EWOULDBLOCK || errno == EAGAIN) {
-					perror("controller_thread - recv timeout");
-					fflush(stdout);
-				}
+				perror("Error while receiving data from controller");
 				close(socket);
 		}
-		printf("New info received by the controller\n");
-		printf("Received VM with IP: %s, PORT: %d, SERVICE: %d, OP: %d\n", vm.ip, vm.port,vm.service, vm.op);
-	
-		// This function performs a realloc if the size is not enough to guest a new VM
-		// TODO: sistemare perchè così potrei fare un controllo in più se operazione non è ADD
-		check_vm_data_set_size(vm.service);
+		printf("New command received by controller for vm <%s,%d>, operation: %d\n", vm.ip, vm.port, vm.op);
 	
 		// It is a pointer to a vm_data struct in the vm_data_set
 		struct vm_data * temp_vm_data;
 		temp_vm_data = &vm_data_set[vm.service][current_vms[vm.service]];
 		
-		create_empty_list(temp_vm_data);
-		
 		// CNT contacts LB just for active CN
 		// check operation field
 		if(vm.op == ADD){
+			
 			strcpy(temp_vm_data->ip_address, vm.ip);
 			temp_vm_data->port = vm.port;
 			current_vms[vm.service]++;
@@ -669,6 +655,8 @@ int main (int argc, char *argv[]) {
 		printf("Usage: %s Service_name ip_controller port_controller port_controller_arrival_rate port_tpcw port_remote_lb\n",argv[0]);
 		exit(EXIT_FAILURE);
 	}
+	
+	vm_list=0;
 	port_arrival_rate = atoi(argv[4]);
 	port_remote_balancer = atoi(argv[6]);
 	/* CONNECTION LB - CONTROLLER */
