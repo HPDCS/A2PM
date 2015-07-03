@@ -276,7 +276,7 @@ void build_select_list() {
 	}
 }
 
-void *arrival_rate_thread(void * sock){
+void *update_region_features(void * sock){
 	int sockfd;
 	sockfd = (int)(long)sock;
 	int index;
@@ -722,7 +722,7 @@ int main (int argc, char *argv[]) {
 	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
 	pthread_attr_init(&pthread_custom_attr);
 	timer_start(arrival_rate_timer);
-	pthread_create(&tid_arrival_rate,&pthread_custom_attr,arrival_rate_thread,(void *)(long)sockfd_controller_arrival_rate);
+	pthread_create(&tid_arrival_rate,&pthread_custom_attr,update_region_features,(void *)(long)sockfd_controller_arrival_rate);
 	
 	/* CONNECTION LB - CLIENTS */
 	sock = socket(AF_INET, SOCK_STREAM, 0);
