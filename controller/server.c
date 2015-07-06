@@ -8,9 +8,9 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <errno.h>
+#include "data_structures.h"
 #include "commands.h"
 #include "ml_models.h"
-#include "system_features.h"
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <time.h>
@@ -53,62 +53,13 @@ char my_own_ip[16];
 char my_balancer_ip[16];
 float global_flow_matrix[NUMBER_REGIONS][NUMBER_REGIONS];
 
-struct _region_features{
-	float arrival_rate;
-	float mttf;
-};
-
-struct _region{
-	char ip_controller[16];
-	char ip_balancer[16];
-	struct _region_features region_features;
-	float probability;
-};
 
 struct _region regions[NUMBER_REGIONS];
-
-/*** TODO: initialize with real provided services ***/
-enum operations{
-	ADD, DELETE, REJ
-};
-
-// services provided
-enum services {
-    SERVICE_1, SERVICE_2, SERVICE_3
-};
-
-// STAND_BY has value 0, ACTIVE has value 1, REJUVENATING has value 2, and so on...
-enum vm_state {
-    STAND_BY, ACTIVE, REJUVENATING
-};
-
-// service info for each CN
-struct vm_service{
-    enum services service;
-    volatile enum vm_state state;
-    int provided_port;
-};
-
-typedef struct _vm_data {
-    int socket;
-    char ip_address[16];
-    int port;
-    volatile struct vm_service service_info;
-    system_features last_features;
-    int last_system_features_stored;
-    float mttf;
-}vm_data;
-
 vm_data ** vm_data_set[NUMBER_GROUPS]; //Groups of VMs
 
-struct virtual_machine{
-	char ip[16];
-	int port;
-	enum services service;
-	enum operations op;
-};
 
-struct virtual_machine virt_machine;
+
+struct virtual_machine_operation virt_machine;
 
 /* Fill current_features */
 void get_feature(char *features, system_features *current_features) {
@@ -226,7 +177,7 @@ void * balancer_thread(void * v){
 
 void send_command_to_load_balancer(){
 
-	if(send(sockfd_balancer,&virt_machine,sizeof(struct virtual_machine),0) < 0){
+	if(send(sockfd_balancer,&virt_machine,sizeof(struct virtual_machine_operation),0) < 0){
 		perror("Error while sending command to load balancer");
 	}
 	printf("Command sent to load balancer\n");
@@ -959,3 +910,4 @@ int main(int argc,char ** argv){
     }
     
 }
+
