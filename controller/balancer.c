@@ -57,13 +57,11 @@ struct arg_thread{
 //This struct is different from the struct in the controller, because balancer needs less infos than controller
 struct vm_data{
 	char ip_address[16];
-	int port;
+	int port;//
 };
 
 //System's topology representation
 struct vm_data * vm_data_set[NUMBER_GROUPS];
-
-int sock; // Listening socket
 
 void setnonblocking(int sock);
 
@@ -90,18 +88,20 @@ void append_buffer(char * original_buffer, char * aux_buffer, int * bytes_origin
 
 
 void add_vm(struct virtual_machine * vm) {
-	struct virtual_machine *new_vm=(struct virtual_machine *)malloc(sizeof (struct virtual_machine));
 	struct vm_list_elem * new_vm_list_elem=(struct vm_list_elem *)malloc(sizeof (struct vm_list_elem));
-	memcpy(&new_vm_list_elem->vm,new_vm, sizeof(struct virtual_machine));
+	memcpy(&new_vm_list_elem->vm,vm, sizeof(struct virtual_machine));
 
 	if (vm_list == NULL) {
 		vm_list = new_vm_list_elem;
+		//printf("Vm list is void. Added vm %s\n", vm_list->vm.ip);
 	} else {
 		struct vm_list_elem* vm_list_temp = vm_list;
 		while (vm_list_temp->next) {
 			vm_list_temp = vm_list_temp->next;
 		}
-		vm_list_temp = new_vm_list_elem;
+		vm_list_temp->next = new_vm_list_elem;
+		//printf("Vm list is not void. Added vm %s\n", vm_list_temp->vm.ip);
+
 	}
 }
 
@@ -113,12 +113,13 @@ void remove_vm_by_ip(char ip[]) {
 		if (strcmp(vm_list->vm.ip, ip)==0) {
 			struct vm_list_elem *to_delete = vm_list;
 			vm_list = vm_list->next;
+
 			free(to_delete);
 		} else {
 			struct vm_list_elem *vm_temp = vm_list;
 
 			while (vm_temp->next) {
-				if (strcmp(vm_temp->next->vm.ip,ip)) {
+				if (strcmp(vm_temp->next->vm.ip,ip)==0) {
 					struct vm_list_elem *to_delete = vm_temp->next;
 					vm_temp->next = vm_temp->next->next;
 					free(to_delete);
@@ -140,9 +141,26 @@ int vm_list_size() {
 		struct vm_list_elem *vm_temp = vm_list;
 		while (vm_temp->next!=NULL) {
 			count++;
+			vm_temp=vm_temp->next;
 		}
 		return count;
 	}
+}
+
+void print_vm_list() {
+        if (vm_list == NULL) {
+                printf("Vms list is void\n");
+        } else {
+                struct vm_list_elem *vm_temp = vm_list;
+                int pos=0;
+		printf("Vm[%i]: %s\n",pos, vm_temp->vm.ip);
+                while (vm_temp->next!=NULL) {
+                	vm_temp=vm_temp->next;
+			pos++;
+                	printf("Vm[%i]: %s\n", pos, vm_temp->vm.ip);
+                }
+
+        }
 }
 
 struct virtual_machine *get_vm_by_position(int position) {
@@ -153,9 +171,11 @@ struct virtual_machine *get_vm_by_position(int position) {
 		struct vm_list_elem *vm_temp = vm_list;
 		while (current_position<position && vm_temp->next!=NULL) {
 			current_position++;
+			vm_temp=vm_temp->next;
 		}
 		if (current_position == position) {
-			return vm_temp;
+			//printf("Returning %s\n", vm_temp->vm.ip);
+			return &vm_temp->vm;
 		} else {
 			return NULL;
 		}
@@ -167,18 +187,20 @@ struct virtual_machine *get_vm_by_position(int position) {
 
 
 struct sockaddr_in select_local_vm_addr(){
-		static int current_rr_index=0;
+	//print_vm_list();
+	static int current_rr_index=0;
         struct sockaddr_in target_vm_saddr;
         target_vm_saddr.sin_family = AF_INET;
-        pthread_mutex_lock(&mutex);
+        //pthread_mutex_lock(&mutex);
         if (vm_list_size()==0) return target_vm_saddr;
-        if (current_rr_index==vm_list_size())
-        	current_rr_index=0;
+        if (current_rr_index>=vm_list_size())
+        	current_rr_index=0;	
         struct virtual_machine *vm=get_vm_by_position(current_rr_index);
+	current_rr_index++;
         target_vm_saddr.sin_addr.s_addr = inet_addr(vm->ip);
         target_vm_saddr.sin_port=htons(VM_SERVICE_PORT);
-        printf("Selected vm %s\n", vm->ip);
-        pthread_mutex_unlock(&mutex);
+        //printf("Current vm list size: %i, current index %i,  selected vm %s\n", vm_list_size(), current_rr_index, vm->ip);
+        //pthread_mutex_unlock(&mutex);
         return target_vm_saddr;
 }
 
@@ -203,7 +225,7 @@ struct sockaddr_in get_target_server_saddr(char * ip, int port, int user_type){
                                 probability_sum += regions[index].probability;
                         }
                         if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
-                                printf("New user <i%s, %d> forwarded to local region\n", ip, port);
+                                printf("New user <%s, %d> forwarded to local region\n", ip, port);
                                 return select_local_vm_addr();
                         } else{
                                 target_server_saddr.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
@@ -223,12 +245,13 @@ int create_socket(char * ip_client, int port_client, int user_type) {
 
         int sock_id = socket(AF_INET, SOCK_STREAM, 0);
         if (sock_id< 0) {
-                perror("Error while creating socket for new user");
+                perror("Error while creating socket for new client");
                 exit(EXIT_FAILURE);
         }
         struct sockaddr_in saddr = get_target_server_saddr(ip_client,port_client,user_type);
+	printf("Connecting socket to server: %s\n", inet_ntoa(saddr.sin_addr));
         if (connect(sock_id, (struct sockaddr *)&saddr , sizeof(saddr)) < 0) {
-                perror("Error while connecting socket for new user");
+                perror("Error while connecting socket for new client");
                 exit(EXIT_FAILURE);
         }
         setnonblocking(sock_id);
@@ -272,9 +295,9 @@ void *update_region_features(void * sock){
 		if(sock_read(sockfd,&temp_regions,sizeof(struct _region)*NUMBER_REGIONS) < 0 ){
 			perror("Error in reading probabilities from the leader");
 		}
-		pthread_mutex_lock(&mutex);
+		//pthread_mutex_lock(&mutex);
 		memcpy(&regions,&temp_regions,sizeof(struct _region)*NUMBER_REGIONS);
-		pthread_mutex_unlock(&mutex);
+		//pthread_mutex_unlock(&mutex);
 		printf("-----------------\nRegion distribution probabilities:\n");
         	for(index = 0; index < NUMBER_REGIONS; index++){
                 	if(strnlen(regions[index].ip_controller,16) != 0){
@@ -293,7 +316,7 @@ void *update_region_features(void * sock){
 }
 
 // Manage the actual forwarding of data
-void *connection_thread(void *vm_client_arg) {
+void *client_sock_id_thread(void *vm_client_arg) {
 
       void *buffer_from_client;
         void *buffer_to_client;
@@ -305,7 +328,8 @@ void *connection_thread(void *vm_client_arg) {
         struct arg_thread vm_client = *(struct arg_thread *)vm_client_arg;
 
         int client_socket = vm_client.socket;
-        int vm_socket = create_socket(vm_client.ip_address,vm_client.port,vm_client.user_type);
+        //printf("Creating socket for new user...\n");
+	int vm_socket = create_socket(vm_client.ip_address,vm_client.port,vm_client.user_type);
 
 
         int times; // Number of reallocation
@@ -341,11 +365,11 @@ void *connection_thread(void *vm_client_arg) {
 		
                 int listnum; //Current item in connectlist for for loops
                 /* First put together fd_set for select(), which will
-                   consist of the sock veriable in case a new connection
+                   consist of the sock veriable in case a new client_sock_id
                    is coming in, plus all the sockets we have already
                    accepted. */
                 FD_ZERO(&socks);
-                /* Loops through all the possible connections and adds those sockets to the fd_set */
+                /* Loops through all the possible client_sock_ids and adds those sockets to the fd_set */
                 // Note that one thread handles only 2 sockets, one from the  client, the other to the VM!
 
                 for (listnum = 0; listnum < 2; listnum++) {
@@ -470,8 +494,8 @@ void *connection_thread(void *vm_client_arg) {
  * In this function we manage the vms in the system
  * 
  * ADD: a new vm has to be added to the system
- * DELETE: an existent vm has to be deleted from the system (we have to manage client connection)
- * REJUVENTATING: an existent vm has to perform rejuvenation (we have to manage client connection)
+ * DELETE: an existent vm has to be deleted from the system (we have to manage client client_sock_id)
+ * REJUVENTATING: an existent vm has to perform rejuvenation (we have to manage client client_sock_id)
  */
 void * controller_thread(void * v){
 	printf("Controller thread is running\n");
@@ -481,28 +505,36 @@ void * controller_thread(void * v){
 	printf("Waiting commands from controller...\n");
 	while(1){
 		// Wait for info by the controller
-		if ((recv(socket, &vm_op, sizeof(struct virtual_machine),0)) == -1){
+		if ((recv(socket, &vm_op, sizeof(struct virtual_machine_operation),0)) == -1){
 				perror("Error while receiving data from controller");
 				close(socket);
 		}
 		printf("Operation %i received by controller for vm %s\n", vm_op.op, vm_op.ip);
-	
-		struct virtual_machine * vm;
-		memcpy(&vm_op.ip, vm->ip, 16);
+		struct virtual_machine * vm= (struct virtual_machine*)malloc(sizeof(struct virtual_machine));
+		memcpy(vm->ip, vm_op.ip, 16);
 		if(vm_op.op == ADD) {
+			printf("Adding vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
 			add_vm(vm);
 			pthread_mutex_unlock(&mutex);
+			printf("New vm list:\n");
+			print_vm_list();
 		}
 		else if(vm_op.op==DELETE) {
+			printf("Removing vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
 			remove_vm_by_ip(vm->ip);
 			pthread_mutex_unlock(&mutex);
+			printf("New vm list:\n");
+			print_vm_list();
 		}
 		else if(vm_op.op == REJ){
+			printf("Removing vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
 			remove_vm_by_ip(vm->ip);
 			pthread_mutex_unlock(&mutex);
+			printf("New vm list:\n");
+			print_vm_list();
 		}
 		else{
 			// something wrong, operation not supported!
@@ -548,26 +580,26 @@ void get_my_own_ip(){
 void * accept_balancers(void * v){
 	while(1) {
 
-                int connection;
+                int client_sock_id;
 		struct sockaddr_in client;
                 unsigned int addr_len;
                 addr_len = sizeof(struct sockaddr_in);
-                connection = accept(socket_remote_balancer, (struct sockaddr *)&client, &addr_len);
-                if (connection < 0) {
+                client_sock_id = accept(socket_remote_balancer, (struct sockaddr *)&client, &addr_len);
+                if (client_sock_id < 0) {
                         perror("accept");
                         exit(EXIT_FAILURE);
                 }
-                setnonblocking(connection);
+                setnonblocking(client_sock_id);
 
                 struct arg_thread *vm_client=(struct arg_thread*)malloc(sizeof(struct arg_thread));
 
-                vm_client->socket = connection;
+                vm_client->socket = client_sock_id;
                 strcpy(vm_client->ip_address,inet_ntoa(client.sin_addr));
                 vm_client->port = ntohs(client.sin_port);
                 vm_client->user_type = 1;
 
                 printf("New balancer connected from <%s, %d>\n", vm_client->ip_address, vm_client->port);
-                res_thread = create_thread(connection_thread, vm_client);
+                res_thread = create_thread(client_sock_id_thread, vm_client);
 
         }
 }
@@ -580,8 +612,8 @@ int main (int argc, char *argv[]) {
 	int reuse_addr = 1;					//Flag to set socket properties
 	struct timeval timeout;				
 	int readsocks; 						//Number of sockets ready for reading
-	int connection;						//Client socket number
-	int sock_id_controller;				//Socket number for controller connection
+	int client_sock_id;						//Client socket number
+	int sock_id_controller;				//Socket number for controller client_sock_id
 	int sock_id_update_region_features;
 	int port_update_region_features;
 	
@@ -598,7 +630,7 @@ int main (int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	
-	vm_list=0;
+	vm_list=NULL;
 	port_update_region_features = atoi(argv[4]);
 	port_remote_balancer = atoi(argv[6]);
 	/* CONNECTION LB - CONTROLLER */
@@ -625,7 +657,7 @@ int main (int argc, char *argv[]) {
 	}
         printf("Balancer %s correctely connected to its own controller %s on port %d\n", my_own_ip, inet_ntoa(controller.sin_addr), ntohs(controller.sin_port));
 
-	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
+	// Once client_sock_id is created, build up a new thread to implement the exchange of messages between LB and Controller
 	pthread_attr_init(&pthread_custom_attr);
 	pthread_create(&tid,&pthread_custom_attr,controller_thread,(void *)(long)sock_id_controller);
 	
@@ -649,13 +681,13 @@ int main (int argc, char *argv[]) {
     printf("Correctly connected to controller %s on port %d\n", inet_ntoa(controller.sin_addr), port_update_region_features);
 
 	memset(regions,0,sizeof(struct _region)*NUMBER_REGIONS);
-	// Once connection is created, build up a new thread to implement the exchange of messages between LB and Controller
+	// Once client_sock_id is created, build up a new thread to implement the exchange of messages between LB and Controller
 	pthread_attr_init(&pthread_custom_attr);
 	timer_start(update_local_region_features_timer);
 	pthread_create(&tid_update_region_features,&pthread_custom_attr,update_region_features,(void *)(long)sock_id_update_region_features);
 	
 	/* CONNECTION LB - CLIENTS */
-	sock = socket(AF_INET, SOCK_STREAM, 0);
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		perror("socket");
 		exit(EXIT_FAILURE);
@@ -708,7 +740,7 @@ int main (int argc, char *argv[]) {
         if(listen(socket_remote_balancer, MAX_NUM_OF_CLIENTS) < 0){
                 perror("listen: ");
         }
-        printf("Listening on port for incoming connection from other balancers %d\n", port_remote_balancer);
+        printf("Listening on port for incoming client_sock_id from other balancers %d\n", port_remote_balancer);
 	pthread_create(&tid_balancer,&pthread_custom_attr,accept_balancers,NULL);
 
 	// Accepting clients
@@ -717,26 +749,31 @@ int main (int argc, char *argv[]) {
 		struct sockaddr_in client;
 		unsigned int addr_len;
 		addr_len = sizeof(struct sockaddr_in);
-		connection = accept(sock, (struct sockaddr *)&client, &addr_len);
-	        if (connection < 0) {
+		client_sock_id = accept(sock, (struct sockaddr *)&client, &addr_len);
+	        //printf("New client connected from %s\n", inet_ntoa(client.sin_addr));
+		if (client_sock_id < 0) {
 	                perror("accept");
 	                exit(EXIT_FAILURE);
         	}
-		setnonblocking(connection);
+		//printf("Setting socket non blocking for cliet %s\n", inet_ntoa(client.sin_addr));
+		setnonblocking(client_sock_id);
+		//printf("Set socket non blocking for cliet %s\n", inet_ntoa(client.sin_addr));
 		if(vm_list_size()==0){
-			close(connection); 
+			printf("Vm list size is equal to zero. Rejecting client %s\n", inet_ntoa(client.sin_addr));
+			close(client_sock_id); 
 			continue;
 		}
-		//printf("accepted connection on sockid %d from client %s\n", connection, inet_ntoa(client.sin_addr));
 
+		//printf("Accepted for cliet %s\n", inet_ntoa(client.sin_addr));
 		struct arg_thread *vm_client=(struct arg_thread*)malloc(sizeof(struct arg_thread));
-		vm_client->socket = connection;
+		vm_client->socket = client_sock_id;
 		strcpy(vm_client->ip_address,inet_ntoa(client.sin_addr));
 		vm_client->port = ntohs(client.sin_port);
 		vm_client->user_type = 0;		
 
-		//printf("New client connected from <%s, %d>\n", vm_client.ip_address, vm_client.port);
-		res_thread = create_thread(connection_thread, vm_client);
+		//printf("Creating new thread for client <%s, %d>\n", vm_client->ip_address, vm_client->port);
+		//fflush(stdout);
+		res_thread = create_thread(client_sock_id_thread, vm_client);
 
 	}
 }
