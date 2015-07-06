@@ -180,6 +180,7 @@ void send_command_to_load_balancer(){
 	if(send(sockfd_balancer,&virt_machine,sizeof(struct virtual_machine_operation),0) < 0){
 		perror("Error while sending command to load balancer");
 	}
+	int i;
 	printf("Command sent to load balancer\n");
 }
 /*
