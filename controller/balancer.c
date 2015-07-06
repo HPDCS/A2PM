@@ -249,7 +249,7 @@ int create_socket(char * ip_client, int port_client, int user_type) {
                 exit(EXIT_FAILURE);
         }
         struct sockaddr_in saddr = get_target_server_saddr(ip_client,port_client,user_type);
-	printf("Connecting socket to server: %s\n", inet_ntoa(saddr.sin_addr));
+	//printf("Connecting socket to server: %s\n", inet_ntoa(saddr.sin_addr));
         if (connect(sock_id, (struct sockaddr *)&saddr , sizeof(saddr)) < 0) {
                 perror("Error while connecting socket for new client");
                 exit(EXIT_FAILURE);
