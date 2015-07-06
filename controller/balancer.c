@@ -225,8 +225,9 @@ struct sockaddr_in get_target_server_saddr(char * ip, int port, int user_type){
                                 probability_sum += regions[index].probability;
                         }
                         if(!strcmp(regions[index].ip_balancer,my_own_ip) || index == NUMBER_REGIONS){
-                                printf("New user <%s, %d> forwarded to local region\n", ip, port);
-                                return select_local_vm_addr();
+				target_server_saddr=select_local_vm_addr();
+                                printf("New user <%s, %d> forwarded to local server %s\n", ip, port, inet_ntoa(target_server_saddr.sin_addr));
+                                return target_server_saddr;
                         } else{
                                 target_server_saddr.sin_addr.s_addr = inet_addr(regions[index].ip_balancer);
                                 target_server_saddr.sin_port = htons(port_remote_balancer);
@@ -235,8 +236,9 @@ struct sockaddr_in get_target_server_saddr(char * ip, int port, int user_type){
                         }
 
                 case 1: //from a remote balancer
-                        printf("Request from remote balancer <%s, %d> forwarded to local region\n", ip, port);
-                        return select_local_vm_addr();
+			target_server_saddr=select_local_vm_addr();
+                        printf("Request from remote balancer <%s, %d> forwarded to local server\n", ip, port, inet_ntoa(target_server_saddr.sin_addr));
+                        return target_server_saddr;
         }
 }
 
@@ -598,7 +600,7 @@ void * accept_balancers(void * v){
                 vm_client->port = ntohs(client.sin_port);
                 vm_client->user_type = 1;
 
-                printf("New balancer connected from <%s, %d>\n", vm_client->ip_address, vm_client->port);
+                //printf("New balancer connected from <%s, %d>\n", vm_client->ip_address, vm_client->port);
                 res_thread = create_thread(client_sock_id_thread, vm_client);
 
         }
