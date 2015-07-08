@@ -518,25 +518,25 @@ void * controller_thread(void * v){
 			printf("Adding vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
 			add_vm(vm);
-			pthread_mutex_unlock(&mutex);
 			printf("New vm list:\n");
 			print_vm_list();
-		}
+			pthread_mutex_unlock(&mutex);		
+		}		
 		else if(vm_op.op==DELETE) {
 			printf("Removing vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
 			remove_vm_by_ip(vm->ip);
-			pthread_mutex_unlock(&mutex);
 			printf("New vm list:\n");
 			print_vm_list();
+			pthread_mutex_unlock(&mutex);
 		}
 		else if(vm_op.op == REJ){
 			printf("Removing vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
 			remove_vm_by_ip(vm->ip);
-			pthread_mutex_unlock(&mutex);
 			printf("New vm list:\n");
 			print_vm_list();
+			pthread_mutex_unlock(&mutex);
 		}
 		else{
 			// something wrong, operation not supported!
