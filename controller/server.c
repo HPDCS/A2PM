@@ -254,10 +254,10 @@ void * update_region_features(void * arg){
 		if(sock_read(sockfd,&temp,sizeof(struct _region)) < 0){
 			perror("Error in reading from controller in update_region_features: ");
 		}
-		printf("UPDATE_REGION_FEATURES: temp.ip_controller is %s\n", temp.ip_controller);
+		//printf("UPDATE_REGION_FEATURES: temp.ip_controller is %s\n", temp.ip_controller);
 		pthread_mutex_lock(&mutex);
 		for(index = 1; index < NUMBER_REGIONS; index++){
-			printf("UPDATE_REGION_FEATURES: regions[%d].ip_controller is %s\n", index, regions[index].ip_controller);
+			//printf("UPDATE_REGION_FEATURES: regions[%d].ip_controller is %s\n", index, regions[index].ip_controller);
 			if(!strcmp(regions[index].ip_controller,temp.ip_controller) || (strnlen(regions[index].ip_controller,16) == 0) ){
 				strcpy(regions[index].ip_controller,temp.ip_controller);
 				strcpy(regions[index].ip_balancer,temp.ip_balancer);
