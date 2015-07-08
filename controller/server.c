@@ -237,9 +237,17 @@ void compute_region_mttf(){
 
 	gettimeofday(&the_timer, 0);
 
-	f = fopen("mttf_region", "a");
-	fprintf(f, "%d\t%f\n", the_timer.tv_sec, region_mttf);
-	printf("-----------------------------------> %d\t%f\n", the_timer.tv_sec, region_mttf);
+	char tmbuf[64], buf[64];
+	time_t now_time = the_timer.tv_sec;
+	struct tm *now_tm;
+	now_tm = localtime(&now_time);
+	
+	strftime(tmbuf, sizeof(tmbuf), "%H:%M:%S", now_tm);
+	snprintf(buf, sizeof(buf), "%s", tmbuf);
+
+	f = fopen("mttf_region_dump.txt", "a");
+	fprintf(f, "%s\t%f\n", buf, region_mttf);
+	//printf("-----------------------------------> %s\t%f\n", buf, region_mttf);
 	fclose(f);
 	
 }
