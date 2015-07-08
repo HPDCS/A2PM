@@ -22,7 +22,7 @@
 #define NUMBER_REGIONS			4
 #define CONN_BACKLOG            1024    // max number of pending connections
 #define BUFSIZE                 4096    // buffer size (in bytes)
-#define TTC_THRESHOLD           300     // threshold to rejuvenate the VM (in sec)
+#define TTC_THRESHOLD           200     // threshold to rejuvenate the VM (in sec)
 
 #define MTTF_SLEEP				10		// avg rej rate period
 #define PATH 					"./controllers_list.txt"
@@ -479,8 +479,8 @@ void * communication_thread(void * v){
                 break;
             } else{
                 // features correctly received
-                //printf("Received data (%d bytes) from VM %s for the service %d\n", numbytes, vm->ip_address, vm->service_info.service);
-                //printf("%s\n", recv_buff);
+                printf("Received data (%d bytes) from VM %s for the service %d\n", numbytes, vm->ip_address, vm->service_info.service);
+                printf("%s\n", recv_buff);
                 
                 fflush(stdout);
                 get_feature(recv_buff, &current_features);
@@ -504,7 +504,7 @@ void * communication_thread(void * v){
                     printf("Predicted time to crash for VM %s for the service %d is: %f\n", vm->ip_address, vm->service_info.service, predicted_time_to_crash);
 
 
-                    if (0 && predicted_time_to_crash < (float)TTC_THRESHOLD) {
+                    if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
                         
                         //pthread_mutex_lock(&manage_vm_mutex);
                         pthread_mutex_lock(&mutex);
