@@ -390,7 +390,6 @@ void * communication_thread(void * v){
     char send_buff[BUFSIZE];
 
     while (1){
-		//printf("Communication_thread socket for VM %s is: %d\n", vm->ip_address, vm->socket);
         if (vm->state == ACTIVE){
             printf("Waiting for features for vm %s\n", vm->ip);
             fflush(stdout);
@@ -470,7 +469,7 @@ void * communication_thread(void * v){
     vm_op.op = DELETE;
     send_command_to_load_balancer();
     if(close(vm->socket) == 0){
-		printf("Connection correctely closed with VM %s\n", vm->ip);
+		printf("Connection correctly closed with VM %s\n", vm->ip);
 	}
 	remove_vm_by_ip(vm->ip, &vm_list);
 	pthread_mutex_unlock(&mutex);
@@ -576,7 +575,9 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
 			
 		}
         // make a new thread for each VMs
-        printf("New VM with IP address %s added sockid %d\n", new_vm->ip, new_vm->socket);
+        printf("New VM with IP address %s added sock id %d\n", new_vm->ip, new_vm->socket);
+        printf("New vm list:\n");
+        print_vm_list(vm_list);
         pthread_attr_init(&pthread_custom_attr);
         if(pthread_create(&tid,&pthread_custom_attr,communication_thread,(void *)new_vm) != 0){
 			perror("Error on pthread_create while accepting new client");
