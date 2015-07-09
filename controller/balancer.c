@@ -7,7 +7,6 @@
 #include <netinet/tcp.h>
 #include <signal.h>
 #include <arpa/inet.h>
-#include "data_structures.h"
 #include "thread.h"
 #include "timer.h"
 #include <stdlib.h>
@@ -45,15 +44,6 @@ struct arg_thread{
 };
 
 
-
-//This struct is different from the struct in the controller, because balancer needs less infos than controller
-struct vm_data{
-	char ip_address[16];
-	int port;//
-};
-
-//System's topology representation
-struct vm_data * vm_data_set[NUMBER_GROUPS];
 
 void setnonblocking(int sock);
 

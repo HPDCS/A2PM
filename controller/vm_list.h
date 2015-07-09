@@ -8,12 +8,20 @@
 #ifndef VM_LIST_H_
 #define VM_LIST_H_
 
+#include "data_structures.h"
+
 
 
 #endif /* VM_LIST_H_ */
 
 struct virtual_machine{
 	char ip[16];                    // vm's ip address
+	enum vm_state state;
+    int socket;
+    int port;
+    system_features last_features;
+    int last_system_features_stored;
+    float mttf;
 };
 
 struct vm_list_elem {
