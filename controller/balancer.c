@@ -11,6 +11,7 @@
 #include "thread.h"
 #include "timer.h"
 #include <stdlib.h>
+#include "vm_list.h"
 
 #define MAX_NUM_OF_CLIENTS	 	1024			//Max number of accepted clients
 #define FORWARD_BUFFER_SIZE		1024*1024		//Size of buffers
@@ -29,15 +30,6 @@ timer update_local_region_features_timer;
 char my_own_ip[16];
 int port_remote_balancer;
 int socket_remote_balancer;
-
-struct virtual_machine{
-	char ip[16];                    // vm's ip address
-};
-
-struct vm_list_elem {
-	struct virtual_machine vm;
-	struct vm_list_elem *next;
-};
 
 struct vm_list_elem *vm_list;
 
@@ -87,100 +79,6 @@ void append_buffer(char * original_buffer, char * aux_buffer, int * bytes_origin
 
 
 
-void add_vm(struct virtual_machine * vm) {
-	struct vm_list_elem * new_vm_list_elem=(struct vm_list_elem *)malloc(sizeof (struct vm_list_elem));
-	memcpy(&new_vm_list_elem->vm,vm, sizeof(struct virtual_machine));
-
-	if (vm_list == NULL) {
-		vm_list = new_vm_list_elem;
-		//printf("Vm list is void. Added vm %s\n", vm_list->vm.ip);
-	} else {
-		struct vm_list_elem* vm_list_temp = vm_list;
-		while (vm_list_temp->next) {
-			vm_list_temp = vm_list_temp->next;
-		}
-		vm_list_temp->next = new_vm_list_elem;
-		//printf("Vm list is not void. Added vm %s\n", vm_list_temp->vm.ip);
-
-	}
-}
-
-
-void remove_vm_by_ip(char ip[]) {
-	if (vm_list == NULL) {
-		return;
-	} else {
-		if (strcmp(vm_list->vm.ip, ip)==0) {
-			struct vm_list_elem *to_delete = vm_list;
-			vm_list = vm_list->next;
-
-			free(to_delete);
-		} else {
-			struct vm_list_elem *vm_temp = vm_list;
-
-			while (vm_temp->next) {
-				if (strcmp(vm_temp->next->vm.ip,ip)==0) {
-					struct vm_list_elem *to_delete = vm_temp->next;
-					vm_temp->next = vm_temp->next->next;
-					free(to_delete);
-					return;
-				}
-				vm_temp = vm_temp->next;
-			}
-			return;
-		}
-	}
-}
-
-
-int vm_list_size() {
-	if (vm_list == NULL) {
-		return 0;
-	} else {
-		int count=1;
-		struct vm_list_elem *vm_temp = vm_list;
-		while (vm_temp->next!=NULL) {
-			count++;
-			vm_temp=vm_temp->next;
-		}
-		return count;
-	}
-}
-
-void print_vm_list() {
-        if (vm_list == NULL) {
-                printf("Vms list is void\n");
-        } else {
-                struct vm_list_elem *vm_temp = vm_list;
-                int pos=0;
-		printf("Vm[%i]: %s\n",pos, vm_temp->vm.ip);
-                while (vm_temp->next!=NULL) {
-                	vm_temp=vm_temp->next;
-			pos++;
-                	printf("Vm[%i]: %s\n", pos, vm_temp->vm.ip);
-                }
-
-        }
-}
-
-struct virtual_machine *get_vm_by_position(int position) {
-	if (vm_list == NULL) {
-		return NULL;
-	} else {
-		int current_position=0;
-		struct vm_list_elem *vm_temp = vm_list;
-		while (current_position<position && vm_temp->next!=NULL) {
-			current_position++;
-			vm_temp=vm_temp->next;
-		}
-		if (current_position == position) {
-			//printf("Returning %s\n", vm_temp->vm.ip);
-			return &vm_temp->vm;
-		} else {
-			return NULL;
-		}
-	}
-}
 
 
 
@@ -188,15 +86,15 @@ struct virtual_machine *get_vm_by_position(int position) {
 
 struct sockaddr_in select_local_vm_addr(){
 	//print_vm_list();
-	static int current_rr_index=0;
+		static int current_rr_index=0;
         struct sockaddr_in target_vm_saddr;
         target_vm_saddr.sin_family = AF_INET;
         //pthread_mutex_lock(&mutex);
-        if (vm_list_size()==0) return target_vm_saddr;
+        if (vm_list_size(&vm_list)==0) return target_vm_saddr;
         if (current_rr_index>=vm_list_size())
         	current_rr_index=0;	
-        struct virtual_machine *vm=get_vm_by_position(current_rr_index);
-	current_rr_index++;
+        struct virtual_machine *vm=get_vm_by_position(current_rr_index, &vm_list);
+        current_rr_index++;
         target_vm_saddr.sin_addr.s_addr = inet_addr(vm->ip);
         target_vm_saddr.sin_port=htons(VM_SERVICE_PORT);
         //printf("Current vm list size: %i, current index %i,  selected vm %s\n", vm_list_size(), current_rr_index, vm->ip);
