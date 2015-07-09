@@ -492,7 +492,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
     buffer = malloc(BUFSIZE);
     
     // store here infos from CNs
-    struct vm_service s;
+    struct vm_service service;
     
     struct sockaddr_in client;
     addr_len = sizeof(struct sockaddr_in);
@@ -513,7 +513,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
     // wait for info about service provided by the VM
     // if errors occur close the socket
     printf("Waiting for info by client\n");
-    if ((numbytes = recv(socket,&s, sizeof(struct vm_service),0)) == -1) {
+    if ((numbytes = recv(socket,&service, sizeof(struct vm_service),0)) == -1) {
         perror("accept_new_client - recv");
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
             perror("accept_new_client - recv timeout");
@@ -526,7 +526,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
         //control that CN provide an existing service
         while(1){
 			bzero(buffer,BUFSIZE);
-			if(s.service >= NUMBER_GROUPS){
+			if(service.service >= NUMBER_GROUPS){
 				sprintf(buffer,"groups");
 			}
 			else sprintf(buffer,"ok");
@@ -541,7 +541,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
 			if(!strcmp(buffer,"ok")){
 				break;
 			}
-			if((numbytes = recv(socket,&s,sizeof(struct vm_service),0)) == -1){
+			if((numbytes = recv(socket,&service,sizeof(struct vm_service),0)) == -1){
 				perror("accept_new_client - recv");
 				if(errno == EAGAIN || errno == EWOULDBLOCK){
 					perror("accept_new_client - recv timeout");
@@ -563,16 +563,15 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
         
         add_vm(new_vm, &vm_list);
                 
-        if(s.state == ACTIVE){
-			
-			//pthread_mutex_lock(&lb_mutex);
+        if(service.state == ACTIVE){
 			strcpy(vm_op.ip,inet_ntoa(client.sin_addr));
 			vm_op.port = htons(8080);
-			vm_op.service = s.service;
+			vm_op.service = service.service;
 			vm_op.op = ADD;
-			//this flag notifies that the Controller want to communicate with LB
 			send_command_to_load_balancer();
-			
+			new_vm->state=ACTIVE;
+		} else {
+			new_vm->state=STAND_BY;
 		}
         // make a new thread for each VMs
         printf("New VM with IP address %s added sock id %d\n", new_vm->ip, new_vm->socket);
