@@ -90,8 +90,8 @@ struct sockaddr_in select_local_vm_addr(){
         struct sockaddr_in target_vm_saddr;
         target_vm_saddr.sin_family = AF_INET;
         //pthread_mutex_lock(&mutex);
-        if (vm_list_size(&vm_list)==0) return target_vm_saddr;
-        if (current_rr_index>=vm_list_size())
+        if (vm_list_size(vm_list)==0) return target_vm_saddr;
+        if (current_rr_index>=vm_list_size(vm_list))
         	current_rr_index=0;	
         struct virtual_machine *vm=get_vm_by_position(current_rr_index, &vm_list);
         current_rr_index++;
@@ -658,7 +658,7 @@ int main (int argc, char *argv[]) {
 		//printf("Setting socket non blocking for cliet %s\n", inet_ntoa(client.sin_addr));
 		setnonblocking(client_sock_id);
 		//printf("Set socket non blocking for cliet %s\n", inet_ntoa(client.sin_addr));
-		if(vm_list_size()==0){
+		if(vm_list_size(vm_list)==0){
 			printf("Vm list size is equal to zero. Rejecting client %s\n", inet_ntoa(client.sin_addr));
 			close(client_sock_id); 
 			continue;
