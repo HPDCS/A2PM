@@ -2,9 +2,9 @@
 #include "vm_list.h"
 
 void add_vm(struct virtual_machine * vm, struct vm_list_elem **vm_list) {
-	struct vm_list_elem * new_vm_list_elem = (struct vm_list_elem *) malloc(
-			sizeof(struct vm_list_elem));
+	struct vm_list_elem * new_vm_list_elem = (struct vm_list_elem *) malloc(sizeof(struct vm_list_elem));
 	memcpy(&new_vm_list_elem->vm, vm, sizeof(struct virtual_machine));
+	new_vm_list_elem->next=NULL;
 
 	if (*vm_list == NULL) {
 		*vm_list = new_vm_list_elem;
@@ -26,7 +26,7 @@ void remove_vm_by_ip(char ip[], struct vm_list_elem **vm_list) {
 	} else {
 		if (strcmp((*vm_list)->vm.ip, ip) == 0) {
 			struct vm_list_elem *to_delete = *vm_list;
-			(*vm_list) = (*vm_list)->next;
+			*vm_list = (*vm_list)->next;
 			free(to_delete);
 		} else {
 			struct vm_list_elem *vm_temp = *vm_list;
@@ -65,13 +65,11 @@ void print_vm_list(struct vm_list_elem *vm_list) {
 	} else {
 		struct vm_list_elem *vm_temp = vm_list;
 		int pos = 0;
-		printf("Vm[%i]: %s - state: %i\n", pos, vm_temp->vm.ip,
-				vm_temp->vm.state);
+		printf("Vm[%i]: %s - state: %i\n", pos, vm_temp->vm.ip,	vm_temp->vm.state);
 		while (vm_temp->next != NULL) {
 			vm_temp = vm_temp->next;
 			pos++;
-			printf("Vm[%i]: %s - state: %i\n", pos, vm_temp->vm.ip,
-					vm_temp->vm.state);
+			printf("Vm[%i]: %s - state: %i\n", pos, vm_temp->vm.ip,	vm_temp->vm.state);
 		}
 
 	}
