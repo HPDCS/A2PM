@@ -456,7 +456,7 @@ void * communication_thread(void * v){
     char send_buff[BUFSIZE];
 
     while (1){
-		printf("Communication_thread socket for VM %s is: %d\n", vm->ip_address, vm->socket);
+		//printf("Communication_thread socket for VM %s is: %d\n", vm->ip_address, vm->socket);
         if (vm->service_info.state != ACTIVE){
 				//printf("STANDBY VM POINTER %i Sock number of Standby VM %d and ip address %s\n", &vm, vm.socket, vm.ip_address);
 				//printf("STANDBY POINTER %p\n", &(vm->service_info.state));
