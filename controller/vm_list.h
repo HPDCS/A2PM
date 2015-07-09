@@ -21,4 +21,10 @@ struct vm_list_elem {
 	struct vm_list_elem *next;
 };
 
+void add_vm(struct virtual_machine * vm, struct vm_list_elem **vm_list);
+void remove_vm_by_ip(char ip[], struct vm_list_elem **vm_list);
+int vm_list_size(struct vm_list_elem *vm_list);
+void print_vm_list(struct vm_list_elem *vm_list);
+struct virtual_machine *get_vm_by_position(int position, struct vm_list_elem *vm_list);
+
 
