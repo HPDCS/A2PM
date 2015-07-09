@@ -95,8 +95,8 @@ void activate_new_machine() {
 			//virt_machine.service = SERVICE_0;
 			vm_op.op = ADD;
 			send_command_to_load_balancer();
-			printf("Activate vm with ip: %s", vm->ip);
-			break;
+			printf("Activated vm with ip: %s", vm->ip);
+			return;
 		}
     }
 	printf("No vms available to be activeted\n");
@@ -564,8 +564,6 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
         strcpy(new_vm->ip, inet_ntoa(client.sin_addr));
         new_vm->socket = socket;
         new_vm->port = ntohs(client.sin_port);
-        
-        add_vm(new_vm, &vm_list);
                 
         if(service.state == ACTIVE){
 			strcpy(vm_op.ip,inet_ntoa(client.sin_addr));
@@ -577,6 +575,8 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
 		} else {
 			new_vm->state=STAND_BY;
 		}
+
+        add_vm(new_vm, &vm_list);
         // make a new thread for each VMs
         printf("New VM with IP address %s added sock id %d\n", new_vm->ip, new_vm->socket);
         printf("New vm list:\n");
