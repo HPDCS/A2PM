@@ -8,7 +8,6 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <errno.h>
-#include "data_structures.h"
 #include "commands.h"
 #include "ml_models.h"
 #include <ifaddrs.h>
