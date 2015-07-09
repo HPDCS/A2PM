@@ -459,8 +459,8 @@ void * communication_thread(void * v){
 		printf("Communication_thread socket for VM %s is: %d\n", vm->ip_address, vm->socket);
         if (vm->service_info.state != ACTIVE){
 				//printf("STANDBY VM POINTER %i Sock number of Standby VM %d and ip address %s\n", &vm, vm.socket, vm.ip_address);
-				printf("STANDBY POINTER %p\n", &(vm->service_info.state));
-				fflush(stdout);
+				//printf("STANDBY POINTER %p\n", &(vm->service_info.state));
+				//fflush(stdout);
 			}else {
             printf("Waiting for features from the CN %s for the service: %d\n", vm->ip_address, vm->service_info.service);
             fflush(stdout);
