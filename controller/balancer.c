@@ -85,7 +85,7 @@ void append_buffer(char * original_buffer, char * aux_buffer, int * bytes_origin
 
 
 struct sockaddr_in select_local_vm_addr(){
-	//print_vm_list();
+	//print_vm_list(vm_list);
 		static int current_rr_index=0;
         struct sockaddr_in target_vm_saddr;
         target_vm_saddr.sin_family = AF_INET;
@@ -415,25 +415,25 @@ void * controller_thread(void * v){
 		if(vm_op.op == ADD) {
 			printf("Adding vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
-			add_vm(vm);
+			add_vm(vm, &vm_list);
 			printf("New vm list:\n");
-			print_vm_list();
+			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);		
 		}		
 		else if(vm_op.op==DELETE) {
 			printf("Removing vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
-			remove_vm_by_ip(vm->ip);
+			remove_vm_by_ip(vm->ip, &vm_list);
 			printf("New vm list:\n");
-			print_vm_list();
+			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);
 		}
 		else if(vm_op.op == REJ){
 			printf("Removing vm %s\n", vm);
 			pthread_mutex_lock(&mutex);
-			remove_vm_by_ip(vm->ip);
+			remove_vm_by_ip(vm->ip, &vm_list);
 			printf("New vm list:\n");
-			print_vm_list();
+			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);
 		}
 		else{
