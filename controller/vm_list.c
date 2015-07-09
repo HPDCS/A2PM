@@ -66,7 +66,7 @@ void print_vm_list(struct vm_list_elem *vm_list) {
         } else {
                 struct vm_list_elem *vm_temp = vm_list;
                 int pos=0;
-		printf("Vm[%i]: %s\n",pos, vm_temp->vm.ip);
+		printf("Vm[%i]: %s - state: %i\n",pos, vm_temp->vm.ip, vm_temp->vm.state);
                 while (vm_temp->next!=NULL) {
                 	vm_temp=vm_temp->next;
 			pos++;

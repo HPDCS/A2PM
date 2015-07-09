@@ -90,15 +90,16 @@ void activate_new_machine() {
     	struct virtual_machine *vm = get_vm_by_position(index, vm_list);
 		if (vm->state == STAND_BY){
 			vm->state = ACTIVE;
-			printf("Activate vm with ip: %s", vm->ip);
 			strcpy(vm_op.ip,vm->ip);
-				vm_op.port = htons(8080); //TODO
-				//virt_machine.service = SERVICE_0;
-				vm_op.op = ADD;
-				send_command_to_load_balancer();
-				break;
-			}
+			vm_op.port = htons(8080); //TODO
+			//virt_machine.service = SERVICE_0;
+			vm_op.op = ADD;
+			send_command_to_load_balancer();
+			printf("Activate vm with ip: %s", vm->ip);
+			break;
+		}
     }
+	printf("No vms available to be activeted\n");
 }
 
 /* This function looks for a standby VM and 
@@ -460,9 +461,10 @@ void * communication_thread(void * v){
         sleep(1);
     }
     
-    printf("Closing connection with VM %s\n", vm->ip);
-
+    printf("Closing connection with vm %s\n", vm->ip);
+    printf("Current vm list\n");
     pthread_mutex_lock(&mutex);
+    print_vm_list(vm_list);
     activate_new_machine();
     strcpy(vm_op.ip,vm->ip);
     vm_op.port = htons(8080);
@@ -472,6 +474,8 @@ void * communication_thread(void * v){
 		printf("Connection correctly closed with VM %s\n", vm->ip);
 	}
 	remove_vm_by_ip(vm->ip, &vm_list);
+    printf("Current vm list\n");
+	print_vm_list(vm_list);
 	pthread_mutex_unlock(&mutex);
 	pthread_exit(0);
 }
