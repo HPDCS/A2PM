@@ -120,7 +120,7 @@ void switch_active_machine(struct virtual_machine *vm) {
     	struct virtual_machine *vm = get_vm_by_position(index, vm_list);
 		if (vm->state == STAND_BY){
 			vm->state = ACTIVE;
-			printf("Activate vm with ip: %s", vm->ip);
+			printf("Activated vm with ip: %s\n", vm->ip);
 			strcpy(vm_op.ip,vm->ip);
 				vm_op.port = htons(8080); //TODO
 				//virt_machine.service = SERVICE_0;
@@ -437,8 +437,7 @@ void * communication_thread(void * v){
                         //pthread_mutex_lock(&manage_vm_mutex);
                         pthread_mutex_lock(&mutex);
                         switch_active_machine(vm);
-                        pthread_mutex_lock(&mutex);
-                        //state_man_vm = 1;
+                        pthread_mutex_unlock(&mutex);
                         break;
                     }
                 }
