@@ -103,7 +103,7 @@ void activate_new_machine() {
 			//virt_machine.service = SERVICE_0;
 			vm_op.op = ADD;
 			send_command_to_load_balancer();
-			printf("Activated vm with ip: %s", vm->ip);
+			printf("Activated vm with ip: %s\n", vm->ip);
 			return;
 		}
 	}
@@ -504,7 +504,7 @@ void * communication_thread(void * v) {
 
 	pthread_mutex_lock(&mutex);
 	remove_vm_by_ip(vm->ip, &vm_list);
-	printf("Current vm list\n");
+	printf("-----------------\nCurrent vm list\n");
 	print_vm_list(vm_list);
 	if (vm->state == ACTIVE) {
 		strcpy(vm_op.ip, vm->ip);
@@ -514,7 +514,7 @@ void * communication_thread(void * v) {
 	}
 	if (get_number_of_active_vms(vm_list) < number_of_active_vm) {
 		activate_new_machine();
-		printf("Current vm list\n");
+		printf("-----------------\nCurrent vm list\n");
 		print_vm_list(vm_list);
 	}
 
@@ -628,7 +628,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr) {
 		// make a new thread for each VMs
 		printf("New VM with IP address %s added with sock id %d, state %i\n", new_vm->ip,
 				new_vm->socket, new_vm->state);
-		printf("New vm list:\n");
+		printf("-----------------\nCurrent vm list:\n");
 		print_vm_list(vm_list);
 		pthread_attr_init(&pthread_custom_attr);
 		if (pthread_create(&tid, &pthread_custom_attr, communication_thread,

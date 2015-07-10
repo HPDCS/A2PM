@@ -437,21 +437,21 @@ void * controller_thread(void * v) {
 			printf("Adding vm %s\n", vm->ip);
 			pthread_mutex_lock(&mutex);
 			add_vm(vm, &vm_list);
-			printf("New vm list:\n");
+			printf("-----------------\nNew vm list:\n");
 			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);
 		} else if (vm_op.op == DELETE) {
 			printf("Removing vm %s\n", vm_op.ip);
 			pthread_mutex_lock(&mutex);
 			remove_vm_by_ip(vm_op.ip, &vm_list);
-			printf("New vm list:\n");
+			printf("-----------------\nNew vm list:\n");
 			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);
 		} else if (vm_op.op == REJ) {
 			printf("Removing vm %s\n", vm_op.ip);
 			pthread_mutex_lock(&mutex);
 			remove_vm_by_ip(vm_op.ip, &vm_list);
-			printf("New vm list:\n");
+			printf("-----------------\nNew vm list:\n");
 			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);
 		} else {
