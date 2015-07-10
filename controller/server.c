@@ -34,7 +34,6 @@ void update_region_workload_distribution();
 
 int ml_model;                           // used machine-learning model
 int number_of_active_vm;				//number of vms to be activated;
-int current_number_of_active_vm;		//current number of active vms
 struct timeval communication_timeout;
 pthread_mutex_t mutex; // mutex used to update current_vms and allocated_vms values
 int state_man_vm = 0;
@@ -609,7 +608,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr) {
 		new_vm->socket = socket;
 		new_vm->port = ntohs(client.sin_port);
 
-		if (current_number_of_active_vm < number_of_active_vm) {
+		if (get_number_of_active_vms(vm_list) < number_of_active_vm) {
 			strcpy(vm_op.ip, inet_ntoa(client.sin_addr));
 			vm_op.port = htons(8080);
 			vm_op.service = service.service;
@@ -622,8 +621,8 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr) {
 
 		add_vm(new_vm, &vm_list);
 		// make a new thread for each VMs
-		printf("New VM with IP address %s added sock id %d\n", new_vm->ip,
-				new_vm->socket);
+		printf("New VM with IP address %s added with sock id %d, state %i\n", new_vm->ip,
+				new_vm->socket, new_vm->state);
 		printf("New vm list:\n");
 		print_vm_list(vm_list);
 		pthread_attr_init(&pthread_custom_attr);
@@ -797,8 +796,6 @@ int main(int argc, char ** argv) {
 	number_of_active_vm=atoi(argv[4]);
 	i_am_leader = atoi(argv[5]);
 	strcpy(leader_ip, argv[6]);
-
-	current_number_of_active_vm=0;
 
 	//Open the local connection
 	start_server(&sockfd, port);
