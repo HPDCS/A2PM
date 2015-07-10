@@ -25,7 +25,7 @@ struct virtual_machine{
 };
 
 struct vm_list_elem {
-	struct virtual_machine vm;
+	struct virtual_machine *vm;
 	struct vm_list_elem *next;
 };
 

@@ -203,7 +203,7 @@ void * update_region_features(void * arg){
 		if(sock_read(sockfd,&temp,sizeof(struct _region)) < 0){
 			perror("Error in reading from controller in update_region_features: ");
 		}
-		//printf("UPDATE_REGION_FEATURES: temp.ip_controller is %s\n", temp.ip_controller);
+		//printf("UPDATE_REGION_FEATURES: temp.ip_controller is %s\n", tFemp.ip_controller);
 		pthread_mutex_lock(&mutex);
 		for(index = 1; index < NUMBER_REGIONS; index++){
 			//printf("UPDATE_REGION_FEATURES: regions[%d].ip_controller is %s\n", index, regions[index].ip_controller);
@@ -222,7 +222,7 @@ void * update_region_features(void * arg){
 				if(sock_write(sockfd,&regions,NUMBER_REGIONS*sizeof(struct _region)) < 0){
 					perror("Error in sending the probabilities to all the other controllers: ");
 				}
-				printf("Prababilities correctely sent to controller %s\n", regions[index].ip_controller);
+				printf("Probabilities correctly sent to controller %s\n", regions[index].ip_controller);
 				break;
 			}
 		}
@@ -405,12 +405,12 @@ void * communication_thread(void * v){
                 }
                 break;
             } else  if (numbytes == 0) {
-                printf("VM %s is disconnected\n", vm->ip);
+                printf("vm %s is disconnected\n", vm->ip);
                 break;
             } else{
                 // features correctly received
-                printf("Received data (%d bytes) from vm %s\n", numbytes, vm->ip);
-                printf("%s\n", recv_buff);
+                //printf("Received data (%d bytes) from vm %s\n", numbytes, vm->ip);
+                //printf("%s\n", recv_buff);
                 
                 fflush(stdout);
                 get_feature(recv_buff, &current_features);
@@ -425,10 +425,9 @@ void * communication_thread(void * v){
                 if (vm->last_system_features_stored) {
 					float mean_time_to_fail = get_predicted_mttf(ml_model, vm->last_features, current_features, init_features);
 					vm->mttf = mean_time_to_fail;
-					printf("predicted MTTF: %f\n", mean_time_to_fail);
                     float predicted_time_to_crash = get_predicted_rttc(ml_model, vm->last_features, current_features);
                     //float predicted_time_to_crash = 1000;
-                    printf("Predicted time to crash for vm %s is: %f\n", vm->ip, predicted_time_to_crash);
+                    printf("Predicted RTTC for vm %s: %f, predicted MTTF: %f \n" , vm->ip, predicted_time_to_crash, mean_time_to_fail);
 
 
                     if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
@@ -564,7 +563,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr){
         strcpy(new_vm->ip, inet_ntoa(client.sin_addr));
         new_vm->socket = socket;
         new_vm->port = ntohs(client.sin_port);
-                
+
         if(service.state == ACTIVE){
 			strcpy(vm_op.ip,inet_ntoa(client.sin_addr));
 			vm_op.port = htons(8080);
