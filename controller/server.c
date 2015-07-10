@@ -90,27 +90,26 @@ void store_last_system_features(system_features *last_features,
  }
  }*/
 
-/*
- void activate_new_machine() {
- int index;
- char send_buff[BUFSIZE];
+void activate_new_machine() {
+	int index;
+	char send_buff[BUFSIZE];
 
- for (index = 0; index < vm_list_size(vm_list); index++) {
- struct virtual_machine *vm = get_vm_by_position(index, vm_list);
- if (vm->state == STAND_BY){
- vm->state = ACTIVE;
- strcpy(vm_op.ip,vm->ip);
- vm_op.port = htons(8080); //TODO
- //virt_machine.service = SERVICE_0;
- vm_op.op = ADD;
- send_command_to_load_balancer();
- printf("Activated vm with ip: %s", vm->ip);
- return;
- }
- }
- printf("No vms available to be activeted\n");
- }
- */
+	for (index = 0; index < vm_list_size(vm_list); index++) {
+		struct virtual_machine *vm = get_vm_by_position(index, vm_list);
+		if (vm->state == STAND_BY) {
+			vm->state = ACTIVE;
+			strcpy(vm_op.ip, vm->ip);
+			vm_op.port = htons(8080); //TODO
+			//virt_machine.service = SERVICE_0;
+			vm_op.op = ADD;
+			send_command_to_load_balancer();
+			printf("Activated vm with ip: %s", vm->ip);
+			return;
+		}
+	}
+	printf("No vms available to be activeted\n");
+}
+
 /* This function looks for a standby VM and 
  * attempts to active it to replace a VM 
  * in rejuvenation state
@@ -502,7 +501,8 @@ void * communication_thread(void * v) {
 	printf("Current vm list\n");
 	pthread_mutex_lock(&mutex);
 	print_vm_list(vm_list);
-	//activate_new_machine();
+	if (get_number_of_active_vms(vm_list) < number_of_active_vm)
+		activate_new_machine();
 	strcpy(vm_op.ip, vm->ip);
 	vm_op.port = htons(8080);
 	vm_op.op = DELETE;
