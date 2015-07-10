@@ -272,7 +272,7 @@ void update_region_workload_distribution(){
 				regions[index].probability = regions[index].region_features.mttf/global_mttf;
 			}
 
-			printf("Balancer %s\trate: %f\tprobability: %f\tmttf: %f\n", regions[index].ip_balancer, regions[index].region_features.arrival_rate, regions[index].probability, regions[index].region_features.mttf);
+			printf("Balancer %s\tarrival rate: %f\mttf: %f\tcalculated request forwarding probability: %f\n", regions[index].ip_balancer, regions[index].region_features.arrival_rate, regions[index].region_features.mttf, regions[index].probability);
 		}
 	}
 	printf("-----------------\n");
@@ -431,7 +431,8 @@ void * communication_thread(void * v){
                     printf("Predicted RTTC for vm %s: %f, predicted MTTF: %f \n" , vm->ip, predicted_time_to_crash, mean_time_to_fail);
 
 
-                    if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
+                    //if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
+                    if ((double)rand()< (double)RAND_MAX/(double)3) {
                         
                         //pthread_mutex_lock(&manage_vm_mutex);
                         pthread_mutex_lock(&mutex);
