@@ -392,8 +392,6 @@ void * communication_thread(void * v){
     char send_buff[BUFSIZE];
 
     while (1){
-        if (vm->state == ACTIVE){
-            printf("Waiting for features for vm %s\n", vm->ip);
             fflush(stdout);
             bzero(recv_buff,BUFSIZE);
             // check recv features
@@ -408,11 +406,8 @@ void * communication_thread(void * v){
             } else  if (numbytes == 0) {
                 printf("vm %s is disconnected\n", vm->ip);
                 break;
-            } else{
-                // features correctly received
-                //printf("Received data (%d bytes) from vm %s\n", numbytes, vm->ip);
-                //printf("%s\n", recv_buff);
-                
+            } else if (vm->state == ACTIVE){
+
                 fflush(stdout);
                 get_feature(recv_buff, &current_features);
                 
@@ -457,7 +452,6 @@ void * communication_thread(void * v){
                     break;
                 }
             }
-        }
         sleep(1);
     }
     
