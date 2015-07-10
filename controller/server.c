@@ -477,10 +477,10 @@ void * communication_thread(void * v) {
 					break;
 				}
 			}
-		} else {
 			store_last_system_features(&(vm->last_features), current_features);
 			vm->last_system_features_stored = 1;
 			//sending CONTINUE command to the VM
+		} else {
 			bzero(send_buff, BUFSIZE);
 			send_buff[0] = CONTINUE;
 			if ((send(vm->socket, send_buff, BUFSIZE, 0)) == -1) {
