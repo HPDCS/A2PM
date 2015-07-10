@@ -45,6 +45,20 @@ void remove_vm_by_ip(char ip[], struct vm_list_elem **vm_list) {
 	}
 }
 
+int get_number_of_active_vms(struct vm_list_elem *vm_list) {
+	if (vm_list == NULL) {
+		return 0;
+	} else {
+		int count = 0;
+		struct vm_list_elem *vm_temp = vm_list;
+		do {
+			if (vm_temp->vm->state==ACTIVE) count++;
+			vm_temp = vm_temp->next;
+		} while (vm_temp != NULL);
+		return count;
+	}
+}
+
 int vm_list_size(struct vm_list_elem *vm_list) {
 	if (vm_list == NULL) {
 		return 0;

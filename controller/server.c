@@ -33,6 +33,8 @@ void get_my_own_ip();
 void update_region_workload_distribution();
 
 int ml_model;                           // used machine-learning model
+int number_of_active_vm;				//number of vms to be activated;
+int current_number_of_active_vm;		//current number of active vms
 struct timeval communication_timeout;
 pthread_mutex_t mutex; // mutex used to update current_vms and allocated_vms values
 int state_man_vm = 0;
@@ -465,7 +467,7 @@ void * communication_thread(void * v) {
 				float predicted_time_to_crash = get_predicted_rttc(ml_model,
 						vm->last_features, current_features);
 				//float predicted_time_to_crash = 1000;
-				printf("Predicted RTTC for vm %s: %f, predicted MTTF: %f \n",
+				printf("-----------------\nPredicted RTTC for vm %s: %f, predicted MTTF: %f \n",
 						vm->ip, predicted_time_to_crash, mean_time_to_fail);
 
 				//if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
@@ -607,7 +609,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr) {
 		new_vm->socket = socket;
 		new_vm->port = ntohs(client.sin_port);
 
-		if (service.state == ACTIVE) {
+		if (current_number_of_active_vm < number_of_active_vm) {
 			strcpy(vm_op.ip, inet_ntoa(client.sin_addr));
 			vm_op.port = htons(8080);
 			vm_op.service = service.service;
@@ -791,9 +793,12 @@ int main(int argc, char ** argv) {
 	port = atoi(argv[1]);
 	port_balancer = atoi(argv[2]);
 	port_balancer_arrival_rate = atoi(argv[3]);
-	ml_model = atoi(argv[4]);
+	ml_model = 1;
+	number_of_active_vm=atoi(argv[4]);
 	i_am_leader = atoi(argv[5]);
 	strcpy(leader_ip, argv[6]);
+
+	current_number_of_active_vm=0;
 
 	//Open the local connection
 	start_server(&sockfd, port);
