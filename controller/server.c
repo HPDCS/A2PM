@@ -236,7 +236,7 @@ void * update_region_features(void * arg) {
 					regions[i].probability = global_flow_matrix[index][i];
 				}
 				if (sock_write(sockfd, &regions,
-						NUMBER_REGIONS * sizeof(struct _region)) < 0) {
+				NUMBER_REGIONS * sizeof(struct _region)) < 0) {
 					perror(
 							"Error in sending the probabilities to all the other controllers: ");
 				}
@@ -372,7 +372,7 @@ void * get_region_features(void * sock) {
 				perror("Error in sending region features to leader: ");
 			}
 			if (sock_read(socket_controller_communication, &regions,
-					NUMBER_REGIONS * sizeof(struct _region)) < 0) {
+			NUMBER_REGIONS * sizeof(struct _region)) < 0) {
 				perror("Error in receiving probabilities from leader: ");
 			}
 
@@ -444,7 +444,9 @@ void * communication_thread(void * v) {
 		} else if (numbytes == 0) {
 			printf("vm %s is disconnected\n", vm->ip);
 			break;
-		} else if (vm->state == ACTIVE) {
+		}
+
+		if (vm->state == ACTIVE) {
 
 			fflush(stdout);
 			get_feature(recv_buff, &current_features);
@@ -480,21 +482,19 @@ void * communication_thread(void * v) {
 			store_last_system_features(&(vm->last_features), current_features);
 			vm->last_system_features_stored = 1;
 			//sending CONTINUE command to the VM
-		} else {
-			bzero(send_buff, BUFSIZE);
-			send_buff[0] = CONTINUE;
-			if ((send(vm->socket, send_buff, BUFSIZE, 0)) == -1) {
-				if (errno == EWOULDBLOCK || errno == EAGAIN) {
-					printf("Timeout on send() while sending data by VM %s\n",
-							vm->ip);
-					fflush(stdout);
-				} else {
-					printf("Error on send() while sending data by VM %s\n",
-							vm->ip);
-					fflush(stdout);
-				}
-				break;
+		}
+		bzero(send_buff, BUFSIZE);
+		send_buff[0] = CONTINUE;
+		if ((send(vm->socket, send_buff, BUFSIZE, 0)) == -1) {
+			if (errno == EWOULDBLOCK || errno == EAGAIN) {
+				printf("Timeout on send() while sending data by VM %s\n",
+						vm->ip);
+				fflush(stdout);
+			} else {
+				printf("Error on send() while sending data by VM %s\n", vm->ip);
+				fflush(stdout);
 			}
+			break;
 		}
 		sleep(1);
 	}
