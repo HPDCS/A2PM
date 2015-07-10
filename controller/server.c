@@ -470,7 +470,7 @@ void * communication_thread(void * v) {
 
 				//if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
 				if ((double) rand() < (double) RAND_MAX / (double) 3) {
-
+					vm->state == REJUVENATING;
 					pthread_mutex_lock(&mutex);
 					switch_active_machine(vm);
 					pthread_mutex_unlock(&mutex);
@@ -501,12 +501,14 @@ void * communication_thread(void * v) {
 	printf("Current vm list\n");
 	pthread_mutex_lock(&mutex);
 	print_vm_list(vm_list);
+	if (vm->state == ACTIVE) {
+		strcpy(vm_op.ip, vm->ip);
+		vm_op.port = htons(8080);
+		vm_op.op = DELETE;
+		send_command_to_load_balancer();
+	}
 	if (get_number_of_active_vms(vm_list) < number_of_active_vm)
 		activate_new_machine();
-	strcpy(vm_op.ip, vm->ip);
-	vm_op.port = htons(8080);
-	vm_op.op = DELETE;
-	send_command_to_load_balancer();
 	if (close(vm->socket) == 0) {
 		printf("Connection correctly closed with VM %s\n", vm->ip);
 	}
