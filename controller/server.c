@@ -497,7 +497,11 @@ void * communication_thread(void * v) {
 		sleep(1);
 	}
 
-	printf("Closing connection with vm %s\n", vm->ip);
+	if (close(vm->socket) == 0)
+		printf("Connection correctly closed with VM %s\n", vm->ip);
+		else
+			printf("Error while closing connection with vm %s\n", vm->ip);
+
 	pthread_mutex_lock(&mutex);
 	remove_vm_by_ip(vm->ip, &vm_list);
 	printf("Current vm list\n");
@@ -508,10 +512,10 @@ void * communication_thread(void * v) {
 		vm_op.op = DELETE;
 		send_command_to_load_balancer();
 	}
-	if (get_number_of_active_vms(vm_list) < number_of_active_vm)
+	if (get_number_of_active_vms(vm_list) < number_of_active_vm) {
 		activate_new_machine();
-	if (close(vm->socket) == 0) {
-		printf("Connection correctly closed with VM %s\n", vm->ip);
+		printf("Current vm list\n");
+		print_vm_list(vm_list);
 	}
 
 	pthread_mutex_unlock(&mutex);
