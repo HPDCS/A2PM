@@ -75,8 +75,7 @@ void print_vm_list(struct vm_list_elem *vm_list) {
 	}
 }
 
-struct virtual_machine *get_vm_by_position(int position,
-		struct vm_list_elem *vm_list) {
+struct virtual_machine *get_vm_by_position(int position, struct vm_list_elem *vm_list) {
 	if (vm_list == NULL) {
 		return NULL;
 	} else {
@@ -88,7 +87,7 @@ struct virtual_machine *get_vm_by_position(int position,
 		}
 		if (current_position == position) {
 			//printf("Returning %s\n", vm_temp->vm.ip);
-			return &vm_temp->vm;
+			return vm_temp->vm;
 		} else {
 			return NULL;
 		}
