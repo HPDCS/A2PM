@@ -82,6 +82,7 @@ void compact_vm_data_set(vm_data vm){
     }
 }*/
 
+/*
 void activate_new_machine() {
     int index;
     char send_buff[BUFSIZE];
@@ -101,7 +102,7 @@ void activate_new_machine() {
     }
 	printf("No vms available to be activeted\n");
 }
-
+*/
 /* This function looks for a standby VM and 
  * attempts to active it to replace a VM 
  * in rejuvenation state
@@ -399,9 +400,9 @@ void * communication_thread(void * v){
             //if ((numbytes = recv(vm->socket,recv_buff,BUFSIZE,0)) == -1) {
 			if ((numbytes = sock_read(vm->socket,recv_buff,BUFSIZE)) == -1) {
                 printf("Failed receiving data from vm %s with sockid %i\n", vm->ip, vm->socket);
-                perror("recv: ");
+                perror("sock_read: ");
                 if (errno == EWOULDBLOCK || errno == EAGAIN) {
-                    printf("Timeout on recv() while waiting data from VM %s\n", vm->ip);
+                    printf("Timeout on sock_read() while waiting data from VM %s\n", vm->ip);
                 }
                 break;
             } else  if (numbytes == 0) {
@@ -464,7 +465,7 @@ void * communication_thread(void * v){
     printf("Current vm list\n");
     pthread_mutex_lock(&mutex);
     print_vm_list(vm_list);
-    activate_new_machine();
+    //activate_new_machine();
     strcpy(vm_op.ip,vm->ip);
     vm_op.port = htons(8080);
     vm_op.op = DELETE;

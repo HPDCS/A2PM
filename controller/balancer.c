@@ -397,16 +397,28 @@ void *client_sock_id_thread(void *vm_client_arg) {
 void * controller_thread(void * v) {
 	printf("Controller thread is running\n");
 	int socket;
+	int numbytes;
 	socket = (int) (long) v;
 	struct virtual_machine_operation vm_op;
 	printf("Waiting commands from controller...\n");
 	while (1) {
 		// Wait for info by the controller
-		if ((recv(socket, &vm_op, sizeof(struct virtual_machine_operation), 0))
-				== -1) {
-			perror("Error while receiving data from controller");
-			close(socket);
-		}
+
+		if ((numbytes = sock_read(socket,&vm_op,sizeof(struct virtual_machine_operation))) == -1) {
+            printf("Failed receiving data from controller\n");
+            perror("sock_read: ");
+            if (errno == EWOULDBLOCK || errno == EAGAIN) {
+                printf("Timeout on sock_read() while waiting data from controller\n");
+            }
+            close(socket);
+            break;
+        } else  if (numbytes == 0) {
+            printf("Controller is disconnected\n");
+            close(socket);
+            break;
+        }
+
+
 		printf("Operation %i received by controller for vm %s\n", vm_op.op,	vm_op.ip);
 		if (vm_op.op == ADD) {
 			struct virtual_machine * vm = (struct virtual_machine*) malloc(sizeof(struct virtual_machine));
