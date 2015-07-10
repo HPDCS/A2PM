@@ -130,14 +130,14 @@ int create_socket(char * ip_client, int port_client, int user_type) {
 	int sock_id = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock_id < 0) {
 		perror("Error while creating socket for new client");
-		exit(EXIT_FAILURE);
+		return 0;
 	}
 	struct sockaddr_in saddr = get_target_server_saddr(ip_client, port_client,
 			user_type);
 	//printf("Connecting socket to server: %s\n", inet_ntoa(saddr.sin_addr));
 	if (connect(sock_id, (struct sockaddr *) &saddr, sizeof(saddr)) < 0) {
 		perror("Error while connecting socket for new client");
-		exit(EXIT_FAILURE);
+		return 0;
 	}
 	setnonblocking(sock_id);
 	return sock_id;
@@ -223,6 +223,17 @@ void *client_sock_id_thread(void *vm_client_arg) {
 	//printf("Creating socket for new user...\n");
 	int vm_socket = create_socket(vm_client.ip_address, vm_client.port,
 			vm_client.user_type);
+
+	if (vm_socket==0) {
+		free(buffer_from_client);
+		free(buffer_to_client);
+		free(aux_buffer_from_client);
+		free(aux_buffer_to_client);
+		close(vm_socket);
+		close(client_socket);
+		free(vm_client_arg);
+		pthread_exit(NULL);
+	}
 
 	int times; // Number of reallocation
 	times = 2;

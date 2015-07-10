@@ -445,7 +445,6 @@ void * communication_thread(void * v) {
 			printf("vm %s is disconnected\n", vm->ip);
 			break;
 		}
-		printf("Received featurs from vm %s\n", vm->ip);
 		if (vm->state == ACTIVE) {
 
 			fflush(stdout);
