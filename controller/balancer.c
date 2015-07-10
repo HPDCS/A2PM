@@ -407,29 +407,27 @@ void * controller_thread(void * v) {
 			perror("Error while receiving data from controller");
 			close(socket);
 		}
-		printf("Operation %i received by controller for vm %s\n", vm_op.op,
-				vm_op.ip);
-		struct virtual_machine * vm = (struct virtual_machine*) malloc(
-				sizeof(struct virtual_machine));
-		memcpy(vm->ip, vm_op.ip, 16);
+		printf("Operation %i received by controller for vm %s\n", vm_op.op,	vm_op.ip);
 		if (vm_op.op == ADD) {
-			printf("Adding vm %s\n", vm);
+			struct virtual_machine * vm = (struct virtual_machine*) malloc(sizeof(struct virtual_machine));
+			memcpy(vm->ip, vm_op.ip, 16);
+			printf("Adding vm %s\n", vm->ip);
 			pthread_mutex_lock(&mutex);
 			add_vm(vm, &vm_list);
 			printf("New vm list:\n");
 			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);
 		} else if (vm_op.op == DELETE) {
-			printf("Removing vm %s\n", vm);
+			printf("Removing vm %s\n", vm_op.ip);
 			pthread_mutex_lock(&mutex);
-			remove_vm_by_ip(vm->ip, &vm_list);
+			remove_vm_by_ip(vm_op.ip, &vm_list);
 			printf("New vm list:\n");
 			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);
 		} else if (vm_op.op == REJ) {
-			printf("Removing vm %s\n", vm);
+			printf("Removing vm %s\n", vm_op.ip);
 			pthread_mutex_lock(&mutex);
-			remove_vm_by_ip(vm->ip, &vm_list);
+			remove_vm_by_ip(vm_op.ip, &vm_list);
 			printf("New vm list:\n");
 			print_vm_list(vm_list);
 			pthread_mutex_unlock(&mutex);
