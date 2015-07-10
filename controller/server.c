@@ -272,7 +272,7 @@ void update_region_workload_distribution(){
 				regions[index].probability = regions[index].region_features.mttf/global_mttf;
 			}
 
-			printf("Balancer %s\tarrival rate: %f\mttf: %f\tcalculated request forwarding probability: %f\n", regions[index].ip_balancer, regions[index].region_features.arrival_rate, regions[index].region_features.mttf, regions[index].probability);
+			printf("Balancer %s, arrival rate: %f, mttf: %f, calculated request forwarding probability: %f\n", regions[index].ip_balancer, regions[index].region_features.arrival_rate, regions[index].region_features.mttf, regions[index].probability);
 		}
 	}
 	printf("-----------------\n");
