@@ -445,7 +445,7 @@ void * communication_thread(void * v) {
 			printf("vm %s is disconnected\n", vm->ip);
 			break;
 		}
-
+		printf("Received featurs from vm %s\n", vm->ip);
 		if (vm->state == ACTIVE) {
 
 			fflush(stdout);
@@ -472,17 +472,16 @@ void * communication_thread(void * v) {
 				//if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
 				if ((double) rand() < (double) RAND_MAX / (double) 3) {
 
-					//pthread_mutex_lock(&manage_vm_mutex);
 					pthread_mutex_lock(&mutex);
 					switch_active_machine(vm);
 					pthread_mutex_unlock(&mutex);
 					break;
 				}
 			}
-			store_last_system_features(&(vm->last_features), current_features);
-			vm->last_system_features_stored = 1;
-			//sending CONTINUE command to the VM
 		}
+		store_last_system_features(&(vm->last_features), current_features);
+		vm->last_system_features_stored = 1;
+		//sending CONTINUE command to the VM
 		bzero(send_buff, BUFSIZE);
 		send_buff[0] = CONTINUE;
 		if ((send(vm->socket, send_buff, BUFSIZE, 0)) == -1) {
