@@ -469,7 +469,7 @@ void * communication_thread(void * v) {
 						vm->ip, predicted_time_to_crash, mean_time_to_fail);
 
 				//if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
-				if ((double) rand() < (double) RAND_MAX / (double) 10) {
+				if ((double) rand() < (double) RAND_MAX / (double) 200) {
 					vm->state == REJUVENATING;
 					pthread_mutex_lock(&mutex);
 					switch_active_machine(vm);
