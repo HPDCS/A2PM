@@ -11,7 +11,7 @@ int user(void *argv)
     int sock;
     struct sockaddr_in server;
     char message[1000] , server_reply[2000];
-    
+while(1){    
     //Create socket
     sock = socket(AF_INET , SOCK_STREAM , 0);
     if (sock == -1)
@@ -23,7 +23,6 @@ int user(void *argv)
     server.sin_addr.s_addr = inet_addr(ip);
     server.sin_family = AF_INET;
     server.sin_port = htons( 8080);
- while(1){
     //Connect to remote server
     	if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0){
         	perror("connect failed. Error");
