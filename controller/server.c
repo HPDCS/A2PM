@@ -317,12 +317,11 @@ void update_region_workload_distribution() {
         snprintf(buf, sizeof(buf), "%s", tmbuf);
 
         file = fopen("mttf_region_dump.txt", "a");
-        fprintf(file, "%s\tBalancer %s, arrival rate: %f, mttf: %f, calculated request forwarding probability: %f\n",
-					buf,
-                                        regions[index].ip_balancer,
-                                        regions[index].region_features.arrival_rate,
-                                        regions[index].region_features.mttf,
-                                        regions[index].probability);
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_balancer,16)!=0)
+        		fprintf(file, "%s\tBalancer %s, arrival rate: %f, mttf: %f, calculated request forwarding probability: %f\n",
+					buf, regions[index].ip_balancer, regions[index].region_features.arrival_rate, regions[index].region_features.mttf, regions[index].probability);
+	}	
         fclose(file);
 
 }
