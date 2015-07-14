@@ -11,7 +11,7 @@ void *connection_handler(void *);
  
 int main(int argc , char *argv[])
 {
-    int socket_desc , client_sock , c , *new_sock;
+    int socket_desc , client_sock , c , *new_sock, connections=0;
     struct sockaddr_in server , client;
      
     //Create socket
@@ -34,20 +34,20 @@ int main(int argc , char *argv[])
         perror("bind failed. Error");
         return 1;
     }
-    puts("bind done");
+    puts("Bind done");
      
     //Listen
     listen(socket_desc , 3);
      
     //Accept and incoming connection
-    puts("Waiting for incoming connections...");
+    puts("Server running ...");
     c = sizeof(struct sockaddr_in);
     while( (client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
-        puts("Connection accepted");
-         
+        //printf("Connection %i accepted ...\n", connections);
+        //connections++;
         pthread_t sniffer_thread;
-        new_sock = malloc(1);
+        new_sock = malloc(sizeof(int));
         *new_sock = client_sock;
          
         if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) new_sock) < 0)
@@ -58,7 +58,6 @@ int main(int argc , char *argv[])
          
         //Now join the thread , so that we dont terminate before the thread
         //pthread_join( sniffer_thread , NULL);
-        puts("Handler assigned");
     }
      
     if (client_sock < 0)
@@ -81,24 +80,9 @@ void *connection_handler(void *socket_desc)
     char *message , client_message[2000];
      
     //Send some messages to the client
-    message = "Greetings! I am your connection handler\n";
+    message = "This is the server reply\n";
     write(sock , message , strlen(message));
-     
-    message = "Now type something and i shall repeat what you type \n";
-    write(sock , message , strlen(message));
-     
-    //Receive a message from client
-    if (read_size = recv(sock , client_message , 2000 , 0) > 0 ) {
-        //Send the message back to client
-        usleep(10);
-	write(sock , client_message , strlen(client_message));
-    } else if(read_size == 0) {
-        puts("Client disconnected");
-        fflush(stdout);
-    } else if(read_size == -1) {
-        perror("recv failed");
-    }
-         
+    close(sock); 
     //Free the socket pointer
     free(socket_desc);
      
