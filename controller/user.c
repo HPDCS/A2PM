@@ -18,7 +18,7 @@ while(1){
     {
         printf("Could not create socket");
     }
-    puts("Socket created");
+    //puts("Socket created");
      
     server.sin_addr.s_addr = inet_addr(ip);
     server.sin_family = AF_INET;
@@ -29,7 +29,6 @@ while(1){
         	return 1;
     	}
      
-    	puts("Connected\n"); 
         //Send some data
         if( send(sock , message , strlen(message) , 0) < 0)
         {
@@ -44,9 +43,7 @@ while(1){
             break;
         }
          
-        puts("Reply received\n");
-    
-     
+        printf(".");     
     	close(sock);
     }
 	return 0;
