@@ -265,7 +265,8 @@ void *client_sock_id_thread(void *vm_client_arg) {
 
 	// We never finish forwarding data!
 	while (1) {
-
+		if (!vm_client.user_type)
+                	lambda++;
 		int listnum; //Current item in connectlist for for loops
 		/* First put together fd_set for select(), which will
 		 consist of the sock veriable in case a new client_sock_id
@@ -339,12 +340,12 @@ void *client_sock_id_thread(void *vm_client_arg) {
 							&times);
 				}
 
-				if (bytes_ready_from_client > 0) {
+				/*if (bytes_ready_from_client > 0) {
 					//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
 					//printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
 					if (!vm_client.user_type)
 						lambda++;
-				}
+				}*/
 
 			}
 			// Check if the VM is ready
