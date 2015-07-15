@@ -195,11 +195,13 @@ void *update_region_features(void * sock) {
 		}
 		printf("-----------------\n");
 		timer_restart(update_local_region_features_timer);
-		printf("LAMBDA IS: %d and INTERVAL IS: %d\n", lambda,
+		printf("User request arrival rate: %d, interfal: %d\n", lambda,
 				UPDATE_LOCAL_REGION_FEATURE_INTERVAL);
 		printf("Sent arrival rate is %.3f. Timer restarted!\n",
 				local_region_user_request_arrival_rate);
+		pthread_mutex_lock(&mutex);
 		lambda = 0;
+		pthread_mutex_unlock(&mutex);
 		while (timer_value_seconds(update_local_region_features_timer)
 				< UPDATE_LOCAL_REGION_FEATURE_INTERVAL) {
 			sleep(1);
@@ -263,6 +265,12 @@ void *client_sock_id_thread(void *vm_client_arg) {
 	connectlist[0] = client_socket;
 	connectlist[1] = vm_socket;
 
+	
+	if (!vm_client.user_type) {
+        	 pthread_mutex_lock(&mutex);
+                 lambda++;
+                 pthread_mutex_unlock(&mutex);
+	}
 	// We never finish forwarding data!
 	while (1) {
 
@@ -339,12 +347,6 @@ void *client_sock_id_thread(void *vm_client_arg) {
 							&times);
 				}
 
-				if (bytes_ready_from_client > 0) {
-					//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
-					//printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
-					if (!vm_client.user_type)
-						lambda++;
-				}
 
 			}
 			// Check if the VM is ready
