@@ -195,7 +195,7 @@ void *update_region_features(void * sock) {
 		}
 		printf("-----------------\n");
 		timer_restart(update_local_region_features_timer);
-		printf("User request arrival rate: %d, interfal: %d\n", lambda,
+		printf("User request arrival rate: %d, interval: %d\n", lambda,
 				UPDATE_LOCAL_REGION_FEATURE_INTERVAL);
 		printf("Sent arrival rate is %.3f. Timer restarted!\n",
 				local_region_user_request_arrival_rate);
