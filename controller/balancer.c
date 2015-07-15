@@ -733,12 +733,10 @@ int main(int argc, char *argv[]) {
 		vm_client->port = ntohs(client.sin_port);
 		vm_client->user_type = 0;
 		printf("Creating new thread for client <%s, %d>\n", vm_client->ip_address, vm_client->port);
-		//fflush(stdout);
-
-        	if(pthread_create(&user_tid,  &pthread_custom_attr , client_sock_id_thread , (void*) vm_client) < 0)
-	        {	
-           		perror("Error while creating user thread");
-            	}		
-		pthread_detach(client_sock_id_thread);
+		//fflush(stdout);		
+        	int err = pthread_create(&user_tid,  &pthread_custom_attr , client_sock_id_thread , (void*) vm_client);
+	        if (err) printf("Error %i while creating user thread", err);
+            	else 		
+			pthread_detach(user_tid);
 	}
 }
