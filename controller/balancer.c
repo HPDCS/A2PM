@@ -273,7 +273,8 @@ void *client_sock_id_thread(void *vm_client_arg) {
 	}
 	// We never finish forwarding data!
 	while (1) {
-
+		if (!vm_client.user_type)
+                	lambda++;
 		int listnum; //Current item in connectlist for for loops
 		/* First put together fd_set for select(), which will
 		 consist of the sock veriable in case a new client_sock_id
@@ -707,7 +708,7 @@ int main(int argc, char *argv[]) {
 		strcpy(vm_client->ip_address, inet_ntoa(client.sin_addr));
 		vm_client->port = ntohs(client.sin_port);
 		vm_client->user_type = 0;
-
+		lambda++;
 		//printf("Creating new thread for client <%s, %d>\n", vm_client->ip_address, vm_client->port);
 		//fflush(stdout);
 		res_thread = create_thread(client_sock_id_thread, vm_client);

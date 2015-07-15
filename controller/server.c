@@ -78,7 +78,9 @@ void *connection_handler(void *socket_desc)
     int sock = *(int*)socket_desc;
     int read_size;
     char *message , client_message[2000];
-     
+    sleep(1);
+    //memory allocation
+    malloc(1000000);
     //Send some messages to the client
     message = "This is the server reply\n";
     write(sock , message , strlen(message));
