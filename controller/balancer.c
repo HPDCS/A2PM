@@ -195,10 +195,7 @@ void *update_region_features(void * sock) {
 		}
 		printf("-----------------\n");
 		timer_restart(update_local_region_features_timer);
-		printf("User request arrival rate: %d, interval: %d\n", lambda,
-				UPDATE_LOCAL_REGION_FEATURE_INTERVAL);
-		printf("Sent arrival rate is %.3f. Timer restarted!\n",
-				local_region_user_request_arrival_rate);
+		printf("User request arrival rate: %d, interval: %d\n", local_region_user_request_arrival_rate, UPDATE_LOCAL_REGION_FEATURE_INTERVAL);
 		pthread_mutex_lock(&mutex);
 		lambda = 0;
 		pthread_mutex_unlock(&mutex);
@@ -267,9 +264,10 @@ void *client_sock_id_thread(void *vm_client_arg) {
 
 	
 	if (!vm_client.user_type) {
-        	 pthread_mutex_lock(&mutex);
-                 lambda++;
-                 pthread_mutex_unlock(&mutex);
+        	pthread_mutex_lock(&mutex);
+                lambda++;
+		printf("Current lambda: %i\n");	
+                pthread_mutex_unlock(&mutex);
 	}
 	// We never finish forwarding data!
 	while (1) {
