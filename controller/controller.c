@@ -22,7 +22,7 @@
 #define NUMBER_REGIONS			4
 #define CONN_BACKLOG            1024    // max number of pending connections
 #define BUFSIZE                 4096    // buffer size (in bytes)
-#define TTC_THRESHOLD           200     // threshold to rejuvenate the VM (in sec)
+#define TTC_THRESHOLD           120     // threshold to rejuvenate the VM (in sec)
 
 #define MTTF_SLEEP				10		// avg rej rate period
 #define PATH 					"./controllers_list.txt"
@@ -471,8 +471,7 @@ void * communication_thread(void * v) {
 				printf("-----------------\nPredicted RTTC for vm %s: %f, predicted MTTF: %f \n",
 						vm->ip, predicted_time_to_crash, mean_time_to_fail);
 
-				//if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
-				if (0 && (double) rand() < (double) RAND_MAX / (double) 200) {
+				if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
 					vm->state == REJUVENATING;
 					pthread_mutex_lock(&mutex);
 					switch_active_machine(vm);
