@@ -24,7 +24,7 @@
 
 pthread_mutex_t mutex;
 int res_thread;
-int lambda = 0;
+int lambda;
 timer update_local_region_features_timer;
 char my_own_ip[16];
 int port_remote_balancer;
@@ -195,11 +195,10 @@ void *update_region_features(void * sock) {
 		}
 		printf("-----------------\n");
 		timer_restart(update_local_region_features_timer);
-		printf("LAMBDA IS: %d and INTERVAL IS: %d\n", lambda,
-				UPDATE_LOCAL_REGION_FEATURE_INTERVAL);
-		printf("Sent arrival rate is %.3f. Timer restarted!\n",
-				local_region_user_request_arrival_rate);
+		printf("User request arrival rate: %f, interval: %d\n", local_region_user_request_arrival_rate, UPDATE_LOCAL_REGION_FEATURE_INTERVAL);
+		pthread_mutex_lock(&mutex);
 		lambda = 0;
+		pthread_mutex_unlock(&mutex);
 		while (timer_value_seconds(update_local_region_features_timer)
 				< UPDATE_LOCAL_REGION_FEATURE_INTERVAL) {
 			sleep(1);
@@ -263,10 +262,14 @@ void *client_sock_id_thread(void *vm_client_arg) {
 	connectlist[0] = client_socket;
 	connectlist[1] = vm_socket;
 
+	
+	if (!vm_client.user_type) {
+        	pthread_mutex_lock(&mutex);
+                lambda++;
+                pthread_mutex_unlock(&mutex);
+	}
 	// We never finish forwarding data!
 	while (1) {
-		if (!vm_client.user_type)
-                	lambda++;
 		int listnum; //Current item in connectlist for for loops
 		/* First put together fd_set for select(), which will
 		 consist of the sock veriable in case a new client_sock_id
@@ -340,12 +343,6 @@ void *client_sock_id_thread(void *vm_client_arg) {
 							&times);
 				}
 
-				/*if (bytes_ready_from_client > 0) {
-					//printf("Read from client on socket %d:\n%s\n---\n",client_socket, (char *)buffer_from_client);
-					//printf("Read from client on socket: %d on actual_index: %d\n", client_socket, actual_index[0]);
-					if (!vm_client.user_type)
-						lambda++;
-				}*/
 
 			}
 			// Check if the VM is ready
@@ -553,6 +550,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	vm_list = NULL;
+	lambda=0;
 	port_update_region_features = atoi(argv[4]);
 	port_remote_balancer = atoi(argv[6]);
 	/* CONNECTION LB - CONTROLLER */
@@ -706,7 +704,6 @@ int main(int argc, char *argv[]) {
 		strcpy(vm_client->ip_address, inet_ntoa(client.sin_addr));
 		vm_client->port = ntohs(client.sin_port);
 		vm_client->user_type = 0;
-
 		//printf("Creating new thread for client <%s, %d>\n", vm_client->ip_address, vm_client->port);
 		//fflush(stdout);
 		res_thread = create_thread(client_sock_id_thread, vm_client);
