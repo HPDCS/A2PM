@@ -24,6 +24,7 @@
 
 pthread_mutex_t mutex;
 int res_thread;
+int created_threads_for_users;
 int lambda;
 timer update_local_region_features_timer;
 char my_own_ip[16];
@@ -209,6 +210,13 @@ void *update_region_features(void * sock) {
 // Manage the actual forwarding of data
 void *client_sock_id_thread(void *vm_client_arg) {
 
+        pthread_mutex_lock(&mutex);
+        created_threads_for_users++;
+        pthread_mutex_unlock(&mutex);
+
+	printf("Current threads for users %i\n",created_threads_for_users);
+	fflush(stdout);
+
 	void *buffer_from_client;
 	void *buffer_to_client;
 	void *aux_buffer_from_client;
@@ -219,7 +227,6 @@ void *client_sock_id_thread(void *vm_client_arg) {
 	struct arg_thread vm_client = *(struct arg_thread *) vm_client_arg;
 
 	int client_socket = vm_client.socket;
-	//printf("Creating socket for new user...\n");
 	int vm_socket = create_socket(vm_client.ip_address, vm_client.port,
 			vm_client.user_type);
 
@@ -334,6 +341,11 @@ void *client_sock_id_thread(void *vm_client_arg) {
 					close(vm_socket);
 					close(client_socket);
 					free(vm_client_arg);
+					//printf("Closing socket (1)\n");
+
+					pthread_mutex_lock(&mutex);
+					created_threads_for_users--;
+                        		pthread_mutex_unlock(&mutex);
 					pthread_exit(NULL);
 				}
 
@@ -375,7 +387,11 @@ void *client_sock_id_thread(void *vm_client_arg) {
 					free(aux_buffer_to_client);
 					close(vm_socket);
 					close(client_socket);
+					//printf("Closing socket (2)\n");
 					free(vm_client_arg);
+                                        pthread_mutex_lock(&mutex);
+                                        created_threads_for_users--;
+                                        pthread_mutex_unlock(&mutex);
 					pthread_exit(NULL);
 				}
 
@@ -394,6 +410,18 @@ void *client_sock_id_thread(void *vm_client_arg) {
 		}
 	}
 
+         free(buffer_from_client);
+         free(buffer_to_client);
+         free(aux_buffer_from_client);
+         free(aux_buffer_to_client);
+         close(vm_socket);
+         close(client_socket);
+         printf("Closing socket (3)\n");
+         free(vm_client_arg);
+         pthread_mutex_lock(&mutex);
+         created_threads_for_users--;
+         pthread_mutex_unlock(&mutex);
+         pthread_exit(NULL);
 }
 
 /*
@@ -533,7 +561,8 @@ int main(int argc, char *argv[]) {
 	int sock_id_controller;		//Socket number for controller client_sock_id
 	int sock_id_update_region_features;
 	int port_update_region_features;
-
+	
+	pthread_t user_tid;
 	pthread_attr_t pthread_custom_attr;
 	pthread_t tid;
 	pthread_t tid_update_region_features;
@@ -543,12 +572,11 @@ int main(int argc, char *argv[]) {
 	// ip_controller: ip used to contact the controller
 	// port_controller: port number used to contact the controller
 	if (argc != 7) {
-		printf(
-				"Usage: %s Service_name ip_controller port_controller port_to_update_region_features port_tpcw port_remote_lb\n",
+		printf("Usage: %s Service_name ip_controller port_controller port_to_update_region_features port_tpcw port_remote_lb\n",
 				argv[0]);
 		exit(EXIT_FAILURE);
 	}
-
+	created_threads_for_users=0;
 	vm_list = NULL;
 	lambda=0;
 	port_update_region_features = atoi(argv[4]);
@@ -704,10 +732,13 @@ int main(int argc, char *argv[]) {
 		strcpy(vm_client->ip_address, inet_ntoa(client.sin_addr));
 		vm_client->port = ntohs(client.sin_port);
 		vm_client->user_type = 0;
-		//printf("Creating new thread for client <%s, %d>\n", vm_client->ip_address, vm_client->port);
+		printf("Creating new thread for client <%s, %d>\n", vm_client->ip_address, vm_client->port);
 		//fflush(stdout);
-		res_thread = create_thread(client_sock_id_thread, vm_client);
 
+        	if(pthread_create(&user_tid,  &pthread_custom_attr , client_sock_id_thread , (void*) vm_client) < 0)
+	        {	
+           		perror("Error while creating user thread");
+            	}		
+		pthread_detach(client_sock_id_thread);
 	}
 }
-
