@@ -6,6 +6,8 @@
 #include<unistd.h>    //write
 #include<pthread.h> //for threading , link with lpthread
  
+void * p;
+
 //the thread function
 void *connection_handler(void *);
  
@@ -50,7 +52,9 @@ int main(int argc , char *argv[])
         new_sock = malloc(sizeof(int));
         *new_sock = client_sock;
          
-        if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) new_sock) < 0)
+        //memory allocation
+   
+     if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) new_sock) < 0)
         {
             perror("could not create thread");
             return 1;
@@ -78,9 +82,10 @@ void *connection_handler(void *socket_desc)
     int sock = *(int*)socket_desc;
     int read_size;
     char *message , client_message[2000];
-    sleep(1);
-    //memory allocation
-    malloc(1000000);
+    usleep(1000);
+    int size=100000;
+    p=(void*)malloc(size);
+    memset(p, 'a', size);
     //Send some messages to the client
     message = "This is the server reply\n";
     write(sock , message , strlen(message));
