@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++11    CMakeFiles/TA.dir/src/TA/TA.cpp.o CMakeFiles/TA.dir/src/TA/main.cpp.o  -o exe/TA -rdynamic lib/libcommon.a -lnfnetlink -lnetfilter_queue -lpthread 

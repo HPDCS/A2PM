@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++11    CMakeFiles/RA.dir/src/RA/RA.cpp.o CMakeFiles/RA.dir/src/RA/main.cpp.o  -o exe/RA -rdynamic lib/libcommon.a -lpthread 

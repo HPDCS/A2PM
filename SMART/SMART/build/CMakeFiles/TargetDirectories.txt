@@ -1,0 +1,8 @@
+/home/ubuntu/framework/SMART/SMART/build/CMakeFiles/CU.dir
+/home/ubuntu/framework/SMART/SMART/build/CMakeFiles/RA.dir
+/home/ubuntu/framework/SMART/SMART/build/CMakeFiles/TA.dir
+/home/ubuntu/framework/SMART/SMART/build/CMakeFiles/common.dir
+/home/ubuntu/framework/SMART/SMART/build/CMakeFiles/forwarder.dir
+/home/ubuntu/framework/SMART/SMART/build/CMakeFiles/monitor.dir
+/home/ubuntu/framework/SMART/SMART/build/CMakeFiles/regret.dir
+/home/ubuntu/framework/SMART/SMART/build/CMakeFiles/router.dir
