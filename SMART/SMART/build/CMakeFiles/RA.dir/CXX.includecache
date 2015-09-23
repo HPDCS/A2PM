@@ -72,11 +72,3 @@ RA.h
 common/common.h
 /home/ubuntu/framework/SMART/SMART/src/RA/common/common.h
 
-/home/ubuntu/framework/SMART/SMART/src/RA/main.cpp
-iostream
--
-cstdlib
--
-RA.h
-/home/ubuntu/framework/SMART/SMART/src/RA/RA.h
-
