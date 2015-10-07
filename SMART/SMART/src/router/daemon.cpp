@@ -19,7 +19,7 @@ DaemonManager::DaemonManager(int assignedRole){
 	//}
 
 	connectCU = false;
-    CUIP=inet_addr("54.93.94.219");
+    CUIP=inet_addr("52.29.47.29");
 }
 
 void DaemonManager::connectToCU(){
