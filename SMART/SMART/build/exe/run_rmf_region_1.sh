@@ -6,9 +6,9 @@ nohup ./router exhaustive 1 > router_output.log &
 sleep 2
 echo "Launching monitor ..."
 pkill monitor
-nohup ./monitor 127.0.0.1 > monitor_output.log &
+nohup ./monitor 172.31.13.51 > monitor_output.log &
 sleep 2
 echo "Launching forwarder ..."
 pkill forwarder
-nohup ./forwarder 127.0.0.1 > forwarder_output.log &
+nohup ./forwarder 172.31.13.51 > forwarder_output.log &
 

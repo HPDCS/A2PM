@@ -4,3 +4,9 @@ Data forwarder created
 enter DataForwarder::process() function
 Trying to connect to router...
 RoutingTable connected to router
+New route for destination: 32.41.123.121 
+Routing Table ==================================
+Destination 32.41.123.121 : 173.127.0.0, 232.212.75.122, 173.127.0.0, 240.8.0.116, 173.127.0.0, 212.8.0.116, 173.127.0.0, 224.8.0.116, 173.127.0.0, 60.49.65.0, 0.0.0.0, 0.0.0.0, 0.0.0.0, 
+=================================================
+Router killed the connexion
+Trying to connect to router...
