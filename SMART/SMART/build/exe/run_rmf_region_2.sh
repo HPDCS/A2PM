@@ -2,7 +2,7 @@
 rm nohup.out
 echo "Launching router ..."
 pkill router
-nohup ./router exhaustive 1 > router_output.log &
+nohup ./router exhaustive 2 > router_output.log &
 sleep 2
 echo "Launching monitor ..."
 pkill monitor
