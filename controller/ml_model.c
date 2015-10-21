@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 
-#define ALPHA 0.6
+#define ALPHA 0.9
 
 
 // This computes the prediction model for linear regression
@@ -73,7 +73,7 @@ float get_predicted_mttf(int ml_model, system_features last_features, system_fea
 
     //return calculate_linear_regression(f);
         float predicted=(float)((float)init_features.mem_free/mem_used_slope)*f.gen_time;
-        printf("Initial memory: %d, mem_used_slope: %f, moving_avg: %f, predicted mttf %f\n", init_features.mem_free, f.mem_used_slope/f.gen_time, mem_used_slope/f.gen_time, predicted);
+        //printf("Initial memory: %d, mem_used_slope: %f, moving_avg: %f, predicted mttf %f\n", init_features.mem_free, f.mem_used_slope/f.gen_time, mem_used_slope/f.gen_time, predicted);
         return predicted;
 
 }
@@ -115,6 +115,6 @@ float get_predicted_rttc(int ml_model, system_features last_features, system_fea
         }
 
 	float predicted=(float)((float)f.mem_free/mem_used_slope)*f.gen_time;
-        printf("Free memory: %d, mem_used_slope: %f, moving_avg: %f, predicted rttf: %f\n", f.mem_free, f.mem_used_slope/f.gen_time, mem_used_slope/f.gen_time, predicted);
+        //printf("Free memory: %d, mem_used_slope: %f, moving_avg: %f, predicted rttf: %f\n", f.mem_free, f.mem_used_slope/f.gen_time, mem_used_slope/f.gen_time, predicted);
         return predicted;
 }

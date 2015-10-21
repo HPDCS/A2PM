@@ -1,0 +1,57 @@
+SMART Router running
+file open failed
+Using Exhaustive probe algorithm
+Waiting for incoming forwarder connections...
+Waiting for incoming vm connections...
+Waiting for monitor connection...
+Trying to connect to CU...
+Connected to CU
+Forwarder connection success
+Forwarder registered : 127.0.0.1
+Monitor connection success
+Connection closed by monitor manager
+Waiting for monitor connection...
+Monitor connection success
+firstPacket.type 0
+forwarder : 127.0.0.1
+monitor : 172.31.13.51
+Information sent
+first Update 
+forwarder : 127.0.0.1
+monitor : 127.0.0.1
+routingManager updated
+pathManager updated
+firtUpdateDone 0
+forwarder : 127.0.0.1
+monitor : 127.0.0.1
+routingManager updated
+pathManager updated
+firtUpdateDone 0
+forwarder : 127.0.0.1
+monitor : 127.0.0.1
+routingManager updated
+pathManager updated
+pathManager updated
+pathManager updated
+pathManager updated
+pathManager updated
+pathManager updated
+pathManager updated
+pathManager updated
+pathManager updated
+firtUpdateDone 1
+First update done
+wait for update
+Starts measurement loop
+-------computeAllPaths ------
+Total number of distinct path to 127.0.0.1 = 1
+Total number of distinct path to 127.0.0.1 = 2
+Probing 2 paths
+==============================================
+    Routing decisions at t=1444305174
+==============================================
+
+127.0.0.1 
+send route to forwarder
+
+127.0.0.1 

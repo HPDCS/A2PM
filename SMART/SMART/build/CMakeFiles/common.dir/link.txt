@@ -1,0 +1,2 @@
+/usr/bin/ar cr lib/libcommon.a  CMakeFiles/common.dir/src/common/common.cpp.o
+/usr/bin/ranlib lib/libcommon.a

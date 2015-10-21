@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++11    CMakeFiles/forwarder.dir/src/forwarder/forwarder.cpp.o CMakeFiles/forwarder.dir/src/forwarder/main.cpp.o  -o exe/forwarder -rdynamic lib/libcommon.a -lpthread 

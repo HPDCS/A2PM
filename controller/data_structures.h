@@ -34,15 +34,6 @@ struct vm_service{
     int provided_port;
 };
 
-typedef struct _vm_data {
-    int socket;
-    char ip_address[16];
-    int port;
-    volatile struct vm_service service_info;
-    system_features last_features;
-    int last_system_features_stored;
-    float mttf;
-}vm_data;
 
 struct virtual_machine_operation{
 	char ip[16];

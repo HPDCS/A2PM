@@ -1,0 +1,1 @@
+/usr/bin/c++    -std=c++11    CMakeFiles/CU.dir/src/CU/main.cpp.o CMakeFiles/CU.dir/src/CU/CU.cpp.o  -o exe/CU -rdynamic lib/libcommon.a -lpthread 
