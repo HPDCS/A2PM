@@ -1,3 +1,10 @@
+/**
+ * This module implements the load balancer.
+ * It receives data from one host, and sends data to another host.
+ * It uses threads, so connections are handled by different threads.
+ * It's statefull: the same client goes over the same data path.
+ */
+
 #include "sockhelp.h"
 #include <ctype.h>
 #include <sys/time.h>
@@ -22,17 +29,33 @@
 #define NUMBER_REGIONS			4
 #define VM_SERVICE_PORT			8080
 
+// mutex for syncrhonization
 pthread_mutex_t mutex;
+
 int res_thread;
 int created_threads_for_users;
+
+// Lambda value
 int lambda;
+
+// A timer to check the update time
 timer update_local_region_features_timer;
+
+// My own ip
 char my_own_ip[16];
+
+// The following two are used to manage antani multi-hop balancers across different regions
+
+// The port number of the remote balancer
 int port_remote_balancer;
+
+// The socket of the remote balancer
 int socket_remote_balancer;
 
+// A list of VMs
 struct vm_list_elem *vm_list;
 
+// A vector of regions data structures. The max number is NUMBER_REGIONS
 struct _region regions[NUMBER_REGIONS];
 
 //Used to pass client info to threads
@@ -43,6 +66,7 @@ struct arg_thread {
 	int user_type;
 };
 
+// A library function to set a socket to be nonblocking to use select
 void setnonblocking(int sock);
 
 /*
@@ -50,6 +74,7 @@ void setnonblocking(int sock);
  */
 
 // Append to the original buffer the content of aux_buffer
+// It reallocates the buffer if needed
 void append_buffer(char * original_buffer, char * aux_buffer,
 		int * bytes_original, int bytes_aux, int * times) {
 
@@ -67,6 +92,8 @@ void append_buffer(char * original_buffer, char * aux_buffer,
 	bzero(aux_buffer, FORWARD_BUFFER_SIZE);
 }
 
+// Get the address of the local VM
+// It uses sockets functions as well
 struct sockaddr_in select_local_vm_addr() {
 	//print_vm_list(vm_list);
 	static int current_rr_index = 0;
@@ -87,6 +114,7 @@ struct sockaddr_in select_local_vm_addr() {
 }
 
 // select the server address
+// A switch is used to determine how to select the server address
 struct sockaddr_in get_target_server_saddr(char * ip, int port, int user_type) {
 	struct sockaddr_in target_server_saddr;
 	target_server_saddr.sin_family = AF_INET;
@@ -95,6 +123,8 @@ struct sockaddr_in get_target_server_saddr(char * ip, int port, int user_type) {
 	float random;
 
 	switch (user_type) {
+		
+		// Get the user type used in this invocation
 
 	case 0: //from a user
 		probability_sum = 0;
@@ -126,6 +156,7 @@ struct sockaddr_in get_target_server_saddr(char * ip, int port, int user_type) {
 	}
 }
 
+// This function creates a socket. It's similar to client.c' function.
 int create_socket(char * ip_client, int port_client, int user_type) {
 
 	int sock_id = socket(AF_INET, SOCK_STREAM, 0);
@@ -145,6 +176,7 @@ int create_socket(char * ip_client, int port_client, int user_type) {
 }
 
 // Make an already-created socket non-blocking
+// It uses fcntl() which is a POSIX API, so it's portable!
 void setnonblocking(int sock) {
 	int opts;
 
@@ -161,6 +193,8 @@ void setnonblocking(int sock) {
 	return;
 }
 
+// Periodically, we update the feature of the regions.
+// This is used for load balancing.
 void *update_region_features(void * sock) {
 	int sockfd;
 	sockfd = (int) (long) sock;
@@ -171,7 +205,8 @@ void *update_region_features(void * sock) {
 	 addr_len = sizeof(struct sockaddr_in);*/
 	struct _region temp_regions[NUMBER_REGIONS];
 	while (1) {
-
+		
+		// Some math to update the regions values
 		double time = timer_value_seconds(update_local_region_features_timer);
 		float local_region_user_request_arrival_rate = (float) lambda
 				/ (float) time;
@@ -200,6 +235,8 @@ void *update_region_features(void * sock) {
 		pthread_mutex_lock(&mutex);
 		lambda = 0;
 		pthread_mutex_unlock(&mutex);
+		
+		// Make all this periodical
 		while (timer_value_seconds(update_local_region_features_timer)
 				< UPDATE_LOCAL_REGION_FEATURE_INTERVAL) {
 			sleep(1);
@@ -208,6 +245,7 @@ void *update_region_features(void * sock) {
 }
 
 // Manage the actual forwarding of data
+// To fully understand this, you should read the manpages of select()
 void *client_sock_id_thread(void *vm_client_arg) {
 
         pthread_mutex_lock(&mutex);
@@ -298,6 +336,7 @@ void *client_sock_id_thread(void *vm_client_arg) {
 		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
 
+		// select() does the magic: it wakes up the process is we have something to do!
 		readsocks = select(highsock + 1, &socks, &socks, (fd_set *) 0,
 				&timeout);
 
@@ -410,6 +449,7 @@ void *client_sock_id_thread(void *vm_client_arg) {
 		}
 	}
 
+	 // Free and close everything which is no longer needed
          free(buffer_from_client);
          free(buffer_to_client);
          free(aux_buffer_from_client);
@@ -487,6 +527,8 @@ void * controller_thread(void * v) {
 	}
 }
 
+// A function to get the local IP. Uncomment the related code if running
+// on a private cloud or on Amazon.
 void get_my_own_ip() {
 	/* LOCAL */
 	/*
@@ -520,6 +562,9 @@ void get_my_own_ip() {
 	pclose(f);
 }
 
+// Receive conncetions from other balancers. This is used at startup time.
+// It's nothing different from a common accept code, but it's from
+// balancers, so it's wrapped in a different function.
 void * accept_balancers(void * v) {
 	while (1) {
 
@@ -533,6 +578,9 @@ void * accept_balancers(void * v) {
 			perror("accept");
 			exit(EXIT_FAILURE);
 		}
+		
+		// A non-blocking socket is very important here, because
+		// if there is nothing to do here, we want to do something else!
 		setnonblocking(client_sock_id);
 
 		struct arg_thread *vm_client = (struct arg_thread*) malloc(
@@ -549,6 +597,7 @@ void * accept_balancers(void * v) {
 	}
 }
 
+// This is the main program, where everything starts!
 int main(int argc, char *argv[]) {
 	char *ascport;						//Service name
 	short int port;       				//Port related to the service name
@@ -719,6 +768,7 @@ int main(int argc, char *argv[]) {
 		setnonblocking(client_sock_id);
 		//printf("Set socket non blocking for cliet %s\n", inet_ntoa(client.sin_addr));
 		if (vm_list_size(vm_list) == 0) {
+			// Print on screen a message
 			printf("Vm list size is equal to zero. Rejecting client %s\n",
 					inet_ntoa(client.sin_addr));
 			close(client_sock_id);

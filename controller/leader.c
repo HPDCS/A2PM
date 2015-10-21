@@ -1,3 +1,7 @@
+/**
+ * This is not used anymore, because we have to implement Avresky's algorithm
+ */
+
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>

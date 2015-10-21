@@ -1,3 +1,7 @@
+/**
+ * This is the broadcast header, to send messages to everyone
+ */
+
 #pragma once
 
 #include <stdlib.h>

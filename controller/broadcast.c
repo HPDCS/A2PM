@@ -1,3 +1,7 @@
+/**
+ * This is the broadcast module, to send messages to everyone
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "sockhelp.h"
