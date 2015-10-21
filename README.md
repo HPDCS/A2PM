@@ -1,15 +1,15 @@
-A2PM
-====
-
+Machine Learning Prediction Framework and Intra/Inter ACM 
+=========================================================
 
 Introduction
 ------------
 
-This package contains the A2PM, a Machine Learning/Rejuvenation Toolkit,
+This package contains the Machine Learning/Inter-Itra Autonomic Controller Manager (ACM),
 which can be used to proactively predict the Remaining Time to Crash (RTTC) of
 virtualized web-based application, and use the models to proactively
 rejuvenate virtual machines when the crashing point is approaching,
 during the system's operation, so as to prevent possible system failures.
+Additionally, the Intra ACM 
 
 Specifically, with an estimation of the RTTC of a component of the system 
 under prediction mode, a proactive action for rejuvenating the system 
