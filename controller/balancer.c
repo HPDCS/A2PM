@@ -500,6 +500,7 @@ void * controller_thread(void * v) {
 		if (vm_op.op == ADD) {
 			struct virtual_machine * vm = (struct virtual_machine*) malloc(sizeof(struct virtual_machine));
 			memcpy(vm->ip, vm_op.ip, 16);
+			vm->state = ACTIVE;
 			printf("Adding vm %s\n", vm->ip);
 			pthread_mutex_lock(&mutex);
 			add_vm(vm, &vm_list);

@@ -448,7 +448,9 @@ void * communication_thread(void * v) {
 			printf("vm %s is disconnected\n", vm->ip);
 			break;
 		}
-		if (vm->state == ACTIVE) {
+
+		if (1) {
+		//if (vm->state == ACTIVE) {
 
 			fflush(stdout);
 			get_feature(recv_buff, &current_features);
@@ -471,7 +473,7 @@ void * communication_thread(void * v) {
 				printf("-----------------\nPredicted RTTC for vm %s: %f, predicted MTTF: %f \n",
 						vm->ip, predicted_time_to_crash, mean_time_to_fail);
 
-				if (predicted_time_to_crash < (float)TTC_THRESHOLD) {
+				if (predicted_time_to_crash < (float)TTC_THRESHOLD  && vm->state == ACTIVE) {
 					vm->state == REJUVENATING;
 					pthread_mutex_lock(&mutex);
 					switch_active_machine(vm);
