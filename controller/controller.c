@@ -469,8 +469,8 @@ void * communication_thread(void * v) {
 				vm->mttf = mean_time_to_fail;
 				float predicted_time_to_crash = get_predicted_rttc(ml_model,
 						vm->last_features, current_features);
-				//float predicted_time_to_crash = 1000;
-				printf("-----------------\nPredicted RTTC for vm %s: %f, predicted MTTF: %f \n",
+				if (vm->state == ACTIVE)
+					printf("-----------------\nPredicted RTTC for vm %s: %f, predicted MTTF: %f \n",
 						vm->ip, predicted_time_to_crash, mean_time_to_fail);
 
 				if (predicted_time_to_crash < (float)TTC_THRESHOLD  && vm->state == ACTIVE) {
