@@ -250,7 +250,7 @@ void * controller_communication_thread(void * v) {
 	}
 }
 
-void lb_function_1() {
+void lb_function_0() {
 	float global_mttf = 0.0;
 	int index;
 	for (index = 0; index < NUMBER_REGIONS; index++) {
@@ -273,7 +273,7 @@ void lb_function_1() {
 	}
 }
 
-void lb_function_2() {
+void lb_function_1() {
 	float global_mttf = 0.0;
 	int index;
 	float estimated_resources[NUMBER_REGIONS];
@@ -281,9 +281,9 @@ void lb_function_2() {
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
-			estimated_resources[index] = regions[index].region_features.mttf + regions[index].region_features.arrival_rate;
+			estimated_resources[index] = regions[index].region_features.mttf * regions[index].region_features.arrival_rate;
 			total_estimated_resources+=estimated_resources[index];
-			printf("\nEstimated_resources[%i]: %f",index, estimated_resources[index]);
+			printf("\nEstimated resources of vm%i: %f",index, estimated_resources[index]);
 		}
 	}
 
@@ -314,16 +314,16 @@ void update_region_workload_distribution() {
 
 	switch (lb_distribution){
 	case 0:
-		lb_function_1();
+		lb_function_0();
 	case 1:
-		lb_function_2();
+		lb_function_1();
 		break;
 	default:
 		break;
 
 	}
 
-	printf("-----------------\nRegion distribution probabilities:\n");
+	printf("\n-----------------\nRegion distribution probabilities:\n");
 
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		printf(
