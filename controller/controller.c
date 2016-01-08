@@ -807,10 +807,10 @@ int main(int argc, char ** argv) {
 	communication_timeout.tv_sec = COMMUNICATION_TIMEOUT;
 	communication_timeout.tv_usec = 0;
 
-	if (argc != 7) {
+	if (argc != 8) {
 		/*** TODO: added argv[0] to avoid warning caused by %s ***/
 		printf(
-				"Usage: %s vm_port_number load_balancer_port_number LB_arrival_rate_port_number lb_distribution i_am_leader [leader_ip]\n",
+				"Arguments: %s 1)vm_port_number 2)load_balancer_port_number 3)LB_arrival_rate_port_number 4) number_of_active_vm 5) lb_distribution 6)i_am_leader 7)[0leader_ip]\n",
 				argv[0]);
 		exit(1);
 	} else if (atoi(argv[1]) == atoi(argv[2])) {
