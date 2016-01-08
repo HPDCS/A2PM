@@ -32,13 +32,14 @@ void send_command_to_load_balancer();
 void get_my_own_ip();
 void update_region_workload_distribution();
 
-int ml_model;                           // used machine-learning model
-int number_of_active_vm;				//number of vms to be activated;
+int ml_model;           	// id of machine-learning model
+int lb_distribution;		// id of region distribution function
+int number_of_active_vm;	//number of vms to be activated;
 struct timeval communication_timeout;
-pthread_mutex_t mutex; // mutex used to update current_vms and allocated_vms values
+pthread_mutex_t mutex; 		// mutex used to update current_vms and allocated_vms values
 int state_man_vm = 0;
 int index_rej_rate = 0;
-int sockfd_balancer;	//socket number for Load Balancer (LB)
+int sockfd_balancer;		//socket number for Load Balancer (LB)
 int sockfd_balancer_arrival_rate;
 float region_mttf;
 int i_am_leader = 0;
@@ -249,21 +250,15 @@ void * controller_communication_thread(void * v) {
 	}
 }
 
-void update_region_workload_distribution() {
+void lb_function_1() {
 	float global_mttf = 0.0;
-	float global_arrival_rate = 0.0;
 	int index;
-	int number_of_regions = 0;
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
 			global_mttf = global_mttf + regions[index].region_features.mttf;
-			global_arrival_rate += regions[index].region_features.arrival_rate;
-			//number_of_regions++;
 		}
 	}
-	printf("Global arrival rate: %f\n", global_arrival_rate);
-	printf("-----------------\nRegion distribution probabilities:\n");
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0) {
 			if (isnan(regions[index].region_features.mttf)) {
@@ -274,14 +269,41 @@ void update_region_workload_distribution() {
 				regions[index].probability = regions[index].region_features.mttf
 						/ global_mttf;
 			}
-
-			printf(
-					"Balancer %s, arrival rate: %f, mttf: %f, calculated request forwarding probability: %f\n",
-					regions[index].ip_balancer,
-					regions[index].region_features.arrival_rate,
-					regions[index].region_features.mttf,
-					regions[index].probability);
 		}
+	}
+}
+
+void update_region_workload_distribution() {
+
+	float global_arrival_rate = 0.0;
+	int index;
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0
+				&& !isnan(regions[index].region_features.mttf)) {
+			global_arrival_rate += regions[index].region_features.arrival_rate;
+		}
+	}
+	printf("Global arrival rate: %f\n", global_arrival_rate);
+
+	switch (lb_distribution){
+	case 0:
+		lb_function_1();
+		break;
+	default:
+		break;
+
+	}
+
+	printf("-----------------\nRegion distribution probabilities:\n");
+
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		printf(
+				"Balancer %s, arrival rate: %f, mttf: %f, new request forwarding probability: %f\n",
+				regions[index].ip_balancer,
+				regions[index].region_features.arrival_rate,
+				regions[index].region_features.mttf,
+				regions[index].probability);
+
 	}
 	printf("-----------------\n");
 
@@ -788,7 +810,7 @@ int main(int argc, char ** argv) {
 	if (argc != 7) {
 		/*** TODO: added argv[0] to avoid warning caused by %s ***/
 		printf(
-				"Usage: %s vm_port_number load_balancer_port_number LB_arrival_rate_port_number ml_model_number i_am_leader leader_ip\n",
+				"Usage: %s vm_port_number load_balancer_port_number LB_arrival_rate_port_number lb_distribution i_am_leader [leader_ip]\n",
 				argv[0]);
 		exit(1);
 	} else if (atoi(argv[1]) == atoi(argv[2])) {
@@ -801,10 +823,12 @@ int main(int argc, char ** argv) {
 	port = atoi(argv[1]);
 	port_balancer = atoi(argv[2]);
 	port_balancer_arrival_rate = atoi(argv[3]);
-	ml_model = 1;
 	number_of_active_vm=atoi(argv[4]);
-	i_am_leader = atoi(argv[5]);
-	strcpy(leader_ip, argv[6]);
+	lb_distribution = atoi(argv[5]);
+	i_am_leader = atoi(argv[6]);
+	strcpy(leader_ip, argv[7]);
+
+	ml_model = 1;
 
 	//Open the local connection
 	start_server(&sockfd, port);
