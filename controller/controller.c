@@ -273,6 +273,33 @@ void lb_function_1() {
 	}
 }
 
+void lb_function_2() {
+	float global_mttf = 0.0;
+	int index;
+	float estimated_resources[NUMBER_REGIONS];
+	float total_estimated_resources=0;
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0
+				&& !isnan(regions[index].region_features.mttf)) {
+			estimated_resources[index] = regions[index].region_features.mttf + regions[index].region_features.arrival_rate;
+			total_estimated_resources+=estimated_resources[index];
+			printf("\nEstimated_resources[%i]: %f",index, estimated_resources[index]);
+		}
+	}
+
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0) {
+			if (isnan(regions[index].region_features.mttf)) {
+				regions[index].probability = 0;
+			} else if (isinf(regions[index].region_features.mttf)) {
+				regions[index].probability = 1;
+			} else {
+				regions[index].probability = estimated_resources[index]	/ total_estimated_resources;
+			}
+		}
+	}
+}
+
 void update_region_workload_distribution() {
 
 	float global_arrival_rate = 0.0;
@@ -288,6 +315,8 @@ void update_region_workload_distribution() {
 	switch (lb_distribution){
 	case 0:
 		lb_function_1();
+	case 1:
+		lb_function_2();
 		break;
 	default:
 		break;
