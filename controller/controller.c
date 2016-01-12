@@ -275,7 +275,7 @@ void lb_function_0() {
 
 void lb_function_1() {
 	float average_rmttf = 0.0;
-	int regions=0;
+	int active_regions=0;
 	int index;
 	float estimated_resources[NUMBER_REGIONS];
 	float total_estimated_resources=0;
@@ -283,17 +283,17 @@ void lb_function_1() {
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
-			average_rmttf+=regions[index].region_features.mttf;
-			regions++;
+			estimated_resources[index]=regions[index].region_features.mttf*regions[index].region_features.arrival_rate;
+			total_estimated_resources+=estimated_resources[index];
 		}
 	}
-	printf("\nRegions %i, average rmttf: %f",regions, average_rmttf);
+	printf("\nRegions %i: estimated resources %f,  average rmttf %f", index, estimated_resources[index], average_rmttf);
 
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0) {
-			if (isnan(regions[index].region_features.mttf)) {
+			if (isnan(estimated_resources[index])) {
 				regions[index].probability = 0;
-			} else if (isinf(regions[index].region_features.mttf)) {
+			} else if (isinf(estimated_resources[index])) {
 				regions[index].probability = 1;
 			} else {
 				regions[index].probability = estimated_resources[index]	/ total_estimated_resources;
@@ -320,8 +320,6 @@ void update_region_workload_distribution() {
 	case 1:
 		lb_function_1();
 		break;
-	case 1:
-		lb_function_2();
 		break;
 	default:
 		break;
