@@ -274,7 +274,6 @@ void lb_function_0() {
 }
 
 void lb_function_1() {
-	float average_rmttf = 0.0;
 	int active_regions=0;
 	int index;
 	float estimated_resources[NUMBER_REGIONS];
@@ -285,9 +284,10 @@ void lb_function_1() {
 				&& !isnan(regions[index].region_features.mttf)) {
 			estimated_resources[index]=regions[index].region_features.mttf*regions[index].region_features.arrival_rate;
 			total_estimated_resources+=estimated_resources[index];
+			printf("\nRegions %i: estimated resources %f,  average rmttf %f", index, estimated_resources[index], regions[index].region_features.mttf);
 		}
 	}
-	printf("\nRegions %i: estimated resources %f,  average rmttf %f", index, estimated_resources[index], average_rmttf);
+
 
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0) {
