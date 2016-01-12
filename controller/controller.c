@@ -302,35 +302,6 @@ void lb_function_1() {
 	}
 }
 
-void lb_function_2() {
-	float average_rmttf = 0.0;
-	int regions=0;
-	int index;
-	float estimated_resources[NUMBER_REGIONS];
-	float total_estimated_resources=0;
-	//calculate the average RMTTF
-	for (index = 0; index < NUMBER_REGIONS; index++) {
-		if (strnlen(regions[index].ip_controller, 16) != 0
-				&& !isnan(regions[index].region_features.mttf)) {
-			average_rmttf+=regions[index].region_features.mttf;
-			regions++;
-		}
-	}
-	printf("\nRegions %i, average rmttf: %f",regions, average_rmttf);
-
-	for (index = 0; index < NUMBER_REGIONS; index++) {
-		if (strnlen(regions[index].ip_controller, 16) != 0) {
-			if (isnan(regions[index].region_features.mttf)) {
-				regions[index].probability = 0;
-			} else if (isinf(regions[index].region_features.mttf)) {
-				regions[index].probability = 1;
-			} else {
-				regions[index].probability = estimated_resources[index]	/ total_estimated_resources;
-			}
-		}
-	}
-}
-
 void update_region_workload_distribution() {
 
 	float global_arrival_rate = 0.0;
@@ -633,7 +604,7 @@ void accept_new_client(int sockfd, pthread_attr_t pthread_custom_attr) {
 	addr_len = sizeof(struct sockaddr_in);
 
 	// get the first pending VM connection request
-	printf("Accepting client...\n");
+	printf("Accepting client\n");
 	if ((socket = accept(sockfd, (struct sockaddr *) &client, &addr_len))
 			== -1) {
 		perror("accept_new_client - accept");
@@ -765,7 +736,7 @@ int accept_load_balancer(int sockfd, pthread_attr_t pthread_custom_attr,
 	*sock_balancer = socket;
 	// make a new thread for each VMs
 	printf(
-			"Communication with load_balancer with ip address %s established on port %d\n",
+			"Communication with load_balancer(private ip address) %s established on port %d\n",
 			inet_ntoa(balancer.sin_addr), ntohs(balancer.sin_port));
 }
 
@@ -873,7 +844,7 @@ int main(int argc, char ** argv) {
 	if (argc != 8) {
 		/*** TODO: added argv[0] to avoid warning caused by %s ***/
 		printf(
-				"Arguments: %s 1)vm_port_number 2)load_balancer_port_number 3)LB_arrival_rate_port_number 4) number_of_active_vm 5) lb_distribution 6)i_am_leader 7)leader_ip\n",
+				"Arguments: %s 1)vm_port_number 2)load_balancer_port_number 3)LB_arrival_rate_port_number 4) number_of_active_vm 5) lb_distribution 6)i_am_leader 7)[0leader_ip]\n",
 				argv[0]);
 		exit(1);
 	} else if (atoi(argv[1]) == atoi(argv[2])) {
@@ -911,9 +882,9 @@ int main(int argc, char ** argv) {
 		exit(1);
 
 	if (sock_read(sockfd_balancer, my_balancer_ip, 16) < 0) {
-		perror("Error in reading balancer ip address: ");
+		perror("Error in reading balancer public ip address: ");
 	}
-	printf("Balancer with ip address %s connected\n",
+	printf("Balancer correctely connected with public ip address %s\n",
 			my_balancer_ip);
 
 	if ((accept_load_balancer(sockfd_balancer_arrival_rate, pthread_custom_attr,
@@ -931,7 +902,7 @@ int main(int argc, char ** argv) {
 	if (i_am_leader) {
 		memset(regions, 0, NUMBER_REGIONS * sizeof(struct _region));
 		get_my_own_ip();
-		printf("My ip is: %s\n", my_own_ip);
+		printf("MY OWN IP IS: %s\n", my_own_ip);
 		strcpy(regions[0].ip_controller, my_own_ip);
 		strcpy(regions[0].ip_balancer, my_balancer_ip);
 		start_server(&socket_controller_communication,
@@ -945,10 +916,10 @@ int main(int argc, char ** argv) {
 		controller.sin_port = htons((int) GLOBAL_CONTROLLER_PORT);
 		if (connect(socket_controller_communication,
 				(struct sockaddr *) &controller, sizeof(controller)) < 0) {
-			perror("Error while connecting with leader controller\n");
-			exit;
+			perror("Error in connection to leader controller: \n");
 		}
-		printf("Communication established with leader controller!\n");
+		printf(
+				"Communication correctely established with leader controller!\n");
 	}
 	//Init of broadcast and leader primitives
 	//initialize_broadcast(PATH);
