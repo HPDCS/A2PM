@@ -282,7 +282,9 @@ void lb_function_1() {
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
-			estimated_resources[index]=regions[index].region_features.mttf*regions[index].region_features.arrival_rate;
+			estimated_resources[index]=regions[index].region_features.mttf
+					*regions[index].region_features.arrival_rate
+					*regions[index].region_features.active_VMs;
 			total_estimated_resources+=estimated_resources[index];
 			printf("\nRegions %i: estimated resources %f,  average rmttf %f", index, estimated_resources[index], regions[index].region_features.mttf);
 		}
@@ -420,10 +422,11 @@ void * get_region_features(void * sock) {
 		if (!i_am_leader) {
 			memset(regions, 0, NUMBER_REGIONS * sizeof(struct _region));
 			get_my_own_ip();
-			printf("GET_REGION_FEATURES: my_own_ip is %s\n", my_own_ip);
+			printf("My ip is %s\n", my_own_ip);
 			strcpy(region.ip_controller, my_own_ip);
 			region.region_features.arrival_rate = arrival_rate;
 			region.region_features.mttf = region_mttf;
+			region.region_features.active_VMs=get_number_of_active_vms(vm_list);
 			if (sock_write(socket_controller_communication, &region,
 					sizeof(struct _region)) < 0) {
 				perror("Error in sending region features to leader: ");
@@ -451,6 +454,7 @@ void * get_region_features(void * sock) {
 		else {
 			regions[0].region_features.arrival_rate = arrival_rate;
 			regions[0].region_features.mttf = region_mttf;
+			regions[0].region_features.active_VMs= get_number_of_active_vms(vm_list);
 			strcpy(regions[0].ip_balancer, my_balancer_ip);
 			update_region_workload_distribution();
 

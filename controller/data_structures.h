@@ -3,6 +3,7 @@
 struct _region_features{
 	float arrival_rate;
 	float mttf;
+	int active_VMs;
 };
 
 struct _region{
