@@ -205,6 +205,8 @@ void * update_region_features(void * arg) {
 				strcpy(regions[index].ip_balancer, temp.ip_balancer);
 				regions[index].region_features.arrival_rate =
 						temp.region_features.arrival_rate;
+				regions[index].region_features.active_vms =
+						temp.region_features.active_vms;
 				regions[index].region_features.mttf = temp.region_features.mttf;
 				printf(
 						"Received region features from controller %s with balancer %s with arrival_rate %f and mttf %f\n",
@@ -437,7 +439,7 @@ void * get_region_features(void * sock) {
 				perror("Error in receiving probabilities from leader: ");
 			}
 
-			printf("-----------------\nRegion distribution probabilities:\n");
+			printf("\n-----------------\nRegion distribution probabilities:\n");
 			for (index = 0; index < NUMBER_REGIONS; index++) {
 				if (strnlen(regions[index].ip_controller, 16) != 0) {
 					printf("Balancer %s\t %f\n", regions[index].ip_balancer,
