@@ -286,7 +286,7 @@ void lb_function_1() {
 					*regions[index].region_features.arrival_rate
 					*regions[index].region_features.active_VMs;
 			total_estimated_resources+=estimated_resources[index];
-			printf("\nRegions %i: estimated resources %f,  average rmttf %f", index, estimated_resources[index], regions[index].region_features.mttf);
+			printf("\nRegions %i: estimated res %f, active VMs %i  average rmttf %f", index, estimated_resources[index], regions[index].region_features.active_VMs, regions[index].region_features.mttf);
 		}
 	}
 
@@ -427,6 +427,7 @@ void * get_region_features(void * sock) {
 			region.region_features.arrival_rate = arrival_rate;
 			region.region_features.mttf = region_mttf;
 			region.region_features.active_VMs=get_number_of_active_vms(vm_list);
+			printf("\nActive VMs: %i", get_number_of_active_vms(vm_list));
 			if (sock_write(socket_controller_communication, &region,
 					sizeof(struct _region)) < 0) {
 				perror("Error in sending region features to leader: ");
