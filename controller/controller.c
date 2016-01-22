@@ -252,7 +252,7 @@ void * controller_communication_thread(void * v) {
 	}
 }
 
-void lb_function_0() {
+void lb_function_1() {
 	float global_mttf = 0.0;
 	int index;
 	for (index = 0; index < NUMBER_REGIONS; index++) {
@@ -275,12 +275,12 @@ void lb_function_0() {
 	}
 }
 
-void lb_function_1() {
+void lb_function_2() {
 	int active_regions=0;
 	int index;
 	float estimated_resources[NUMBER_REGIONS];
 	float total_estimated_resources=0;
-	//calculate the average RMTTF
+	//estimate resource per region
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
@@ -292,7 +292,6 @@ void lb_function_1() {
 		}
 	}
 
-
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0) {
 			if (isnan(estimated_resources[index])) {
@@ -302,6 +301,55 @@ void lb_function_1() {
 			} else {
 				regions[index].probability = estimated_resources[index]	/ total_estimated_resources;
 			}
+		}
+	}
+}
+
+void lb_function_3() {
+
+	float total_mttf = 0.0;
+	int n_regions=0;
+	int index;
+	//calculate average rmttf
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0
+				&& !isnan(regions[index].region_features.mttf)) {
+			total_mttf = total_mttf + regions[index].region_features.mttf;
+			n_regions++;
+		}
+	}
+	float average_rmttf = total_mttf/n_regions;
+
+	// reduce forwording probability for overloaded regions
+	float total_prob_reduction=0;
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0
+				&& !isnan(regions[index].region_features.mttf)) {
+			if (regions[index].region_features.mttf>average_rmttf) {
+				float new_prob=regions[index].probability*(average_rmttf/regions[index].region_features.mttf);
+				total_prob_reduction=total_prob_reduction+(regions[index].probability-new_prob);
+				regions[index].probability=new_prob;
+			}
+		}
+	}
+
+	// add forwording probability to underloaded regions
+
+	//calculate the total total_rmttf of underloaded regions
+	float total_rmttf=0;
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0
+				&& !isnan(regions[index].region_features.mttf)) {
+			if (regions[index].region_features.mttf<average_rmttf) {
+				total_rmttf+=regions[index].region_features.mttf;
+			}
+		}
+	}
+	//distribute total_prob_reduction proportionally to the load
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0
+				&& !isnan(regions[index].region_features.mttf)) {
+			regions[index].probability+=total_prob_reduction*(regions[index].region_features.mttf/total_rmttf);
 		}
 	}
 }
@@ -319,11 +367,13 @@ void update_region_workload_distribution() {
 	printf("Global arrival rate: %f\n", global_arrival_rate);
 
 	switch (lb_distribution){
-	case 0:
-		lb_function_0();
 	case 1:
 		lb_function_1();
+	case 2:
+		lb_function_2();
 		break;
+	case 3:
+		lb_function_3();
 		break;
 	default:
 		break;
