@@ -309,15 +309,34 @@ void lb_function_3() {
 
 	printf("\nlb function 3");
 
-	float total_mttf = 0.0;
 	int n_regions=0;
 	int index;
+
+	//calculate n_regions
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0
+				&& !isnan(regions[index].region_features.mttf)) {
+			n_regions++;
+		}
+	}
+	//check if it is the first run
+	for (index = 0; index < NUMBER_REGIONS; index++) {
+		if (strnlen(regions[index].ip_controller, 16) != 0
+				&& !isnan(regions[index].region_features.mttf)) {
+			if (regions[index].probability==0)
+					regions[index].probability=1/n_regions;
+		}
+	}
+
+
+
+	float total_mttf = 0.0;
+
 	//calculate average rmttf
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
 			total_mttf = total_mttf + regions[index].region_features.mttf;
-			n_regions++;
 		}
 	}
 	float average_rmttf = total_mttf/n_regions;
@@ -394,14 +413,14 @@ void update_region_workload_distribution() {
 
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		printf(
-				"Balancer %s, arrival rate: %f, mttf: %f, new request forwarding probability: %f\n",
+				"\nBalancer %s, arrival rate: %f, mttf: %f, new request forwarding probability: %f",
 				regions[index].ip_balancer,
 				regions[index].region_features.arrival_rate,
 				regions[index].region_features.mttf,
 				regions[index].probability);
 
 	}
-	printf("-----------------\n");
+	printf("\n-----------------\n");
 
 	float f[NUMBER_REGIONS], p[NUMBER_REGIONS];
 	memset(f, 0, sizeof(float) * NUMBER_REGIONS);
@@ -418,9 +437,9 @@ void update_region_workload_distribution() {
 	memset(global_flow_matrix, 0,
 			sizeof(float) * NUMBER_REGIONS * NUMBER_REGIONS);
 	calculate_flow_matrix(global_flow_matrix, f, p, NUMBER_REGIONS);
-	printf("-----------------\nGlobal Flow Matrix:\n");
+	printf("\n-----------------\nGlobal Flow Matrix:");
 	print_matrix(global_flow_matrix, NUMBER_REGIONS);
-	printf("-----------------\n");
+	printf("\n-----------------\n");
 
         struct timeval the_timer;
         FILE *file;
