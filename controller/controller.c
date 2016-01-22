@@ -322,7 +322,7 @@ void lb_function_3() {
 		}
 	}
 	//check if the sum is = 1
-	if (regions[index].probability != 0) {
+	if (total_prob != 0) {
 		printf("\nTotal prob = %f, reseting...", total_prob);
 		for (index = 0; index < NUMBER_REGIONS; index++) {
 			if (strnlen(regions[index].ip_controller, 16) != 0
