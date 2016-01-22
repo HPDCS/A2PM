@@ -324,7 +324,7 @@ void lb_function_3() {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
 			if (regions[index].probability==0)
-					regions[index].probability=1/n_regions;
+					regions[index].probability=(float)1/(float)n_regions;
 		}
 	}
 
