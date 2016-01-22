@@ -307,7 +307,7 @@ void lb_function_2() {
 
 void lb_function_3() {
 
-	printf("\nlb function 3)
+	printf("\nlb function 3");
 
 	float total_mttf = 0.0;
 	int n_regions=0;
