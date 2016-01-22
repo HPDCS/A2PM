@@ -318,7 +318,7 @@ void lb_function_3() {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
 			n_regions++;
-			printf("nCUrrent region %i probability: %f", regions[index].probability);
+			printf("\nCurrent region %i probability: %f",index, regions[index].probability);
 			total_prob+=regions[index].probability;
 		}
 	}
