@@ -332,9 +332,9 @@ void lb_function_3() {
 					printf("\ncurrent region %i probability: %f",index, regions[index].probability);
 			}
 		}
+		return;
 	}
 
-	return;
 
 	float total_mttf = 0.0;
 
