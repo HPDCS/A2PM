@@ -311,20 +311,24 @@ void lb_function_3() {
 
 	int n_regions=0;
 	int index;
+	int total_prob=0;
 
 	//calculate n_regions
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
 			n_regions++;
+			total_prob+=regions[index].probability;
 		}
 	}
-	//check if it is the first run
-	for (index = 0; index < NUMBER_REGIONS; index++) {
-		if (strnlen(regions[index].ip_controller, 16) != 0
-				&& !isnan(regions[index].region_features.mttf)) {
-			if (regions[index].probability==0)
-					regions[index].probability=(float)1/(float)n_regions;
+	//check if the sum is = 1
+	if (regions[index].probability != 0) {
+		printf("\nTotal prob = %f, reseting...", total_prob);
+		for (index = 0; index < NUMBER_REGIONS; index++) {
+			if (strnlen(regions[index].ip_controller, 16) != 0
+					&& !isnan(regions[index].region_features.mttf)) {
+					regions[index].probability = (float) 1 / (float) n_regions;
+			}
 		}
 	}
 
@@ -437,7 +441,7 @@ void update_region_workload_distribution() {
 	memset(global_flow_matrix, 0,
 			sizeof(float) * NUMBER_REGIONS * NUMBER_REGIONS);
 	calculate_flow_matrix(global_flow_matrix, f, p, NUMBER_REGIONS);
-	printf("\n-----------------\nGlobal Flow Matrix:");
+	printf("\n-----------------\nGlobal Flow Matrix:\n");
 	print_matrix(global_flow_matrix, NUMBER_REGIONS);
 	printf("\n-----------------\n");
 
