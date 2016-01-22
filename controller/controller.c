@@ -307,6 +307,8 @@ void lb_function_2() {
 
 void lb_function_3() {
 
+	printf("\nlb function 3)
+
 	float total_mttf = 0.0;
 	int n_regions=0;
 	int index;
@@ -319,6 +321,7 @@ void lb_function_3() {
 		}
 	}
 	float average_rmttf = total_mttf/n_regions;
+	printf("\naverage rmttf  %f,", average_rmttf);
 
 	// reduce forwording probability for overloaded regions
 	float total_prob_reduction=0;
@@ -327,11 +330,13 @@ void lb_function_3() {
 				&& !isnan(regions[index].region_features.mttf)) {
 			if (regions[index].region_features.mttf>average_rmttf) {
 				float new_prob=regions[index].probability*(average_rmttf/regions[index].region_features.mttf);
+				printf("\tnew_prob for region %i: %f,", index, new_prob);
 				total_prob_reduction=total_prob_reduction+(regions[index].probability-new_prob);
 				regions[index].probability=new_prob;
 			}
 		}
 	}
+	printf("\ntotal prob reduction: %f,", total_prob_reduction);
 
 	// add forwording probability to underloaded regions
 
@@ -345,6 +350,7 @@ void lb_function_3() {
 			}
 		}
 	}
+	printf("\ntotal rmttf: %f,", total_rmttf);
 	//distribute total_prob_reduction proportionally to the load
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
@@ -352,6 +358,9 @@ void lb_function_3() {
 			regions[index].probability+=total_prob_reduction*(regions[index].region_features.mttf/total_rmttf);
 		}
 	}
+
+	//print
+
 }
 
 void update_region_workload_distribution() {
@@ -365,6 +374,7 @@ void update_region_workload_distribution() {
 		}
 	}
 	printf("Global arrival rate: %f\n", global_arrival_rate);
+	printf("\n-----------------\nCalculating region distribution probabilities:\n");
 
 	switch (lb_distribution){
 	case 1:
@@ -380,7 +390,7 @@ void update_region_workload_distribution() {
 
 	}
 
-	printf("\n-----------------\nRegion distribution probabilities:\n");
+
 
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		printf(
