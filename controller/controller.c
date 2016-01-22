@@ -311,29 +311,30 @@ void lb_function_3() {
 
 	int n_regions=0;
 	int index;
-	int total_prob=0;
+	float total_prob=0;
 
 	//calculate n_regions
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
 			n_regions++;
-			printf("\nCurrent region %i probability: %f",index, regions[index].probability);
+			printf("\ncurrent region %i probability: %f",index, regions[index].probability);
 			total_prob+=regions[index].probability;
 		}
 	}
 	//check if the sum is = 1
-	if (total_prob != 0) {
+	if (total_prob != 1) {
 		printf("\nTotal prob = %f, reseting...", total_prob);
 		for (index = 0; index < NUMBER_REGIONS; index++) {
 			if (strnlen(regions[index].ip_controller, 16) != 0
 					&& !isnan(regions[index].region_features.mttf)) {
 					regions[index].probability = (float) 1 / (float) n_regions;
+					printf("\ncurrent region %i probability: %f",index, regions[index].probability);
 			}
 		}
 	}
 
-
+	return;
 
 	float total_mttf = 0.0;
 
