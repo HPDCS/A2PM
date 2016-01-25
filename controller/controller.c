@@ -52,6 +52,7 @@ float global_flow_matrix[NUMBER_REGIONS][NUMBER_REGIONS];
 struct vm_list_elem *vm_list;
 
 struct _region regions[NUMBER_REGIONS];
+struct _region buffer_to_send_regions[NUMBER_REGIONS];
 
 struct virtual_machine_operation vm_op;
 
@@ -217,7 +218,6 @@ void * update_region_features(void * arg) {
 				update_region_workload_distribution();
 				//send data to the slave controller
 				int i;
-				struct _region regions_temp[NUMBER_REGIONS];
 				memcpy(regions_temp, regions, sizeof(struct _region));
 				for (i = 0; i < NUMBER_REGIONS; i++) {
 					regions_temp[i].probability = global_flow_matrix[index][i];
