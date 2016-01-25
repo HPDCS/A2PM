@@ -360,7 +360,7 @@ void lb_function_3() {
 			}
 		}
 	}
-	printf("\ntotal prob reduction: %f,", total_prob_reduction);
+	printf("\nTotal forwarding probability reduction: %f,", total_prob_reduction);
 
 	// add forwording probability to underloaded regions
 
@@ -369,17 +369,20 @@ void lb_function_3() {
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
-			if (regions[index].region_features.mttf<average_rmttf) {
+			if (regions[index].region_features.mttf>average_rmttf) {
 				total_rmttf+=regions[index].region_features.mttf;
 			}
 		}
 	}
-	printf("\ntotal rmttf: %f,", total_rmttf);
+	printf("\nTotal rmttf of underloaded regions: %f,", total_rmttf);
 	//distribute total_prob_reduction proportionally to the load
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
-			regions[index].probability+=total_prob_reduction*(regions[index].region_features.mttf/total_rmttf);
+			if (regions[index].region_features.mttf>average_rmttf) {
+				regions[index].probability+=total_prob_reduction*(regions[index].region_features.mttf/total_rmttf);
+			}
+
 		}
 	}
 
