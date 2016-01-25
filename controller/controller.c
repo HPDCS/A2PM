@@ -318,12 +318,12 @@ void lb_function_3() {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
 			n_regions++;
-			printf("\ncurrent region %i probability: %f",index, regions[index].probability);
+			printf("\nCurrent region %i forwarding probability: %f",index, regions[index].probability);
 			total_prob+=regions[index].probability;
 		}
 	}
 	//check if the sum is = 1
-	if (total_prob != 1) {
+	if (abs(total_prob - 1.0)>0.001) {
 		printf("\nTotal prob = %f, reseting...", total_prob);
 		for (index = 0; index < NUMBER_REGIONS; index++) {
 			if (strnlen(regions[index].ip_controller, 16) != 0
@@ -332,7 +332,6 @@ void lb_function_3() {
 					printf("\ncurrent region %i probability: %f",index, regions[index].probability);
 			}
 		}
-		return;
 	}
 
 
@@ -346,7 +345,7 @@ void lb_function_3() {
 		}
 	}
 	float average_rmttf = total_mttf/n_regions;
-	printf("\naverage rmttf  %f,", average_rmttf);
+	printf("\nAverage rmttf  %f,", average_rmttf);
 
 	// reduce forwording probability for overloaded regions
 	float total_prob_reduction=0;
@@ -355,7 +354,7 @@ void lb_function_3() {
 				&& !isnan(regions[index].region_features.mttf)) {
 			if (regions[index].region_features.mttf>average_rmttf) {
 				float new_prob=regions[index].probability*(average_rmttf/regions[index].region_features.mttf);
-				printf("\tnew_prob for region %i: %f,", index, new_prob);
+				printf("\tNew forwarding probability for region %i: %f,", index, new_prob);
 				total_prob_reduction=total_prob_reduction+(regions[index].probability-new_prob);
 				regions[index].probability=new_prob;
 			}
