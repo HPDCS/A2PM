@@ -215,16 +215,19 @@ void * update_region_features(void * arg) {
 						regions[index].region_features.arrival_rate,
 						regions[index].region_features.mttf);
 				update_region_workload_distribution();
+				//send data to the slave controller
 				int i;
+				struct _region regions_temp[NUMBER_REGIONS];
+				memcpy(regions_temp, regions, sizeof(struct _region));
 				for (i = 0; i < NUMBER_REGIONS; i++) {
-					regions[i].probability = global_flow_matrix[index][i];
+					regions_temp[i].probability = global_flow_matrix[index][i];
 				}
-				if (sock_write(sockfd, &regions,
+				if (sock_write(sockfd, &regions_temp,
 				NUMBER_REGIONS * sizeof(struct _region)) < 0) {
 					perror(
-							"Error in sending the probabilities to all the other controllers: ");
+							"Error while sending probabilities to the slave controller: ");
 				}
-				printf("Probabilities correctly sent to controller %s\n",
+				printf("Probabilities correctly sent to the slave controller %s\n",
 						regions[index].ip_controller);
 				break;
 			}
@@ -253,6 +256,7 @@ void * controller_communication_thread(void * v) {
 }
 
 void lb_function_1() {
+	printf("\nLb function 1 running...");
 	float global_mttf = 0.0;
 	int index;
 	for (index = 0; index < NUMBER_REGIONS; index++) {
@@ -276,6 +280,7 @@ void lb_function_1() {
 }
 
 void lb_function_2() {
+	printf("\nLb function 2 running...");
 	int active_regions=0;
 	int index;
 	float estimated_resources[NUMBER_REGIONS];
@@ -307,7 +312,7 @@ void lb_function_2() {
 
 void lb_function_3() {
 
-	printf("\nlb function 3");
+	printf("\nLb function 3 running...");
 
 	int n_regions=0;
 	int index;
@@ -403,9 +408,10 @@ void update_region_workload_distribution() {
 	printf("Global arrival rate: %f\n", global_arrival_rate);
 	printf("\n-----------------\nCalculating region distribution probabilities:\n");
 
-	switch (lb_distribution){
+	switch (lb_distribution) {
 	case 1:
 		lb_function_1();
+		break;
 	case 2:
 		lb_function_2();
 		break;
@@ -421,7 +427,8 @@ void update_region_workload_distribution() {
 
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		printf(
-				"\nBalancer %s, arrival rate: %f, mttf: %f, new request forwarding probability: %f",
+				"\nRegion %i, balancer %s, arrival rate: %f, mttf: %f, new request forwarding probability: %f",
+				index,
 				regions[index].ip_balancer,
 				regions[index].region_features.arrival_rate,
 				regions[index].region_features.mttf,
