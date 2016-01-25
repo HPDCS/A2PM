@@ -218,7 +218,7 @@ void * update_region_features(void * arg) {
 				update_region_workload_distribution();
 				//send data to the slave controller
 				int i;
-				memcpy(regions_temp, regions, sizeof(struct _region));
+				memcpy(buffer_to_send_regions, regions, sizeof(struct _region));
 				for (i = 0; i < NUMBER_REGIONS; i++) {
 					buffer_to_send_regions[i].probability = global_flow_matrix[index][i];
 				}
