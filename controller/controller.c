@@ -361,7 +361,7 @@ void lb_function_3() {
 				float new_prob=regions[index].probability -
 						(1/2)*regions[index].probability *(1- regions[index].region_features.mttf/average_rmttf);
 				printf("%f,%f,%f,%f",regions[index].probability,regions[index].region_features.mttf/average_rmttf,
-						1- regions[index].region_features.mttf/average_rmttf, (1/2)*regions[index].probability *(1- regions[index].region_features.mttf/average_rmttf);
+						1- regions[index].region_features.mttf/average_rmttf, (1/2)*regions[index].probability *(1- regions[index].region_features.mttf/average_rmttf));
 				printf("\tNew forwarding probability for region %i: %f,", index, new_prob);
 				total_prob_reduction=total_prob_reduction+(regions[index].probability-new_prob);
 				regions[index].probability=new_prob;
