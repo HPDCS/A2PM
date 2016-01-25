@@ -218,12 +218,12 @@ void * update_region_features(void * arg) {
 				update_region_workload_distribution();
 				//send data to the slave controller
 				int i;
-				memcpy(buffer_to_send_regions, regions, sizeof(struct _region));
+				memcpy(buffer_to_send_regions, regions, NUMBER_REGIONS * sizeof(struct _region));
 				for (i = 0; i < NUMBER_REGIONS; i++) {
 					buffer_to_send_regions[i].probability = global_flow_matrix[index][i];
 				}
 				if (sock_write(sockfd, &buffer_to_send_regions,
-				NUMBER_REGIONS * sizeof(struct _region)) < 0) {
+						NUMBER_REGIONS * sizeof(struct _region)) < 0) {
 					perror(
 							"Error while sending probabilities to the slave controller: ");
 				}
@@ -556,7 +556,7 @@ void * get_region_features(void * sock) {
 			update_region_workload_distribution();
 
 			int i;
-			memcpy(buffer_to_send_regions, regions, sizeof(struct _region));
+			memcpy(buffer_to_send_regions, regions, NUMBER_REGIONS * sizeof(struct _region));
 			for (i = 0; i < NUMBER_REGIONS; i++) {
 				buffer_to_send_regions[i].probability = global_flow_matrix[index][i];
 			}
