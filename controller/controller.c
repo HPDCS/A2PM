@@ -220,9 +220,9 @@ void * update_region_features(void * arg) {
 				int i;
 				memcpy(regions_temp, regions, sizeof(struct _region));
 				for (i = 0; i < NUMBER_REGIONS; i++) {
-					regions_temp[i].probability = global_flow_matrix[index][i];
+					buffer_to_send_regions[i].probability = global_flow_matrix[index][i];
 				}
-				if (sock_write(sockfd, &regions_temp,
+				if (sock_write(sockfd, &buffer_to_send_regions,
 				NUMBER_REGIONS * sizeof(struct _region)) < 0) {
 					perror(
 							"Error while sending probabilities to the slave controller: ");
