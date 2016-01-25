@@ -352,7 +352,7 @@ void lb_function_3() {
 	for (index = 0; index < NUMBER_REGIONS; index++) {
 		if (strnlen(regions[index].ip_controller, 16) != 0
 				&& !isnan(regions[index].region_features.mttf)) {
-			if (regions[index].region_features.mttfaverage_rmttf) {
+			if (regions[index].region_features.mttf<average_rmttf) {
 				float new_prob=regions[index].probability*(average_rmttf/regions[index].region_features.mttf);
 				printf("\tNew forwarding probability for region %i: %f,", index, new_prob);
 				total_prob_reduction=total_prob_reduction+(regions[index].probability-new_prob);
