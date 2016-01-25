@@ -556,10 +556,11 @@ void * get_region_features(void * sock) {
 			update_region_workload_distribution();
 
 			int i;
+			memcpy(buffer_to_send_regions, regions, sizeof(struct _region));
 			for (i = 0; i < NUMBER_REGIONS; i++) {
-				regions[i].probability = global_flow_matrix[0][i];
+				buffer_to_send_regions[i].probability = global_flow_matrix[index][i];
 			}
-			if (sock_write(sockfd, &regions,
+			if (sock_write(sockfd, &buffer_to_send_regions,
 					sizeof(struct _region) * NUMBER_REGIONS) < 0) {
 				perror("Error in sending regions to my own load balancer: ");
 			}
