@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 
-#define ALPHA 0.9
+#define ALPHA 0.3
 
 
 // This computes the prediction model for linear regression
